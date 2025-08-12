@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useNavbar } from "./navbar-context"
 import { useAuth } from "./auth-context"
-import { LogOut, User, Menu, X, ChevronLeft, ChevronRight, Home, BarChart3, Settings, FileText, Calculator, TrendingUp, DollarSign } from "lucide-react"
+import { LogOut, User, Menu, X, ChevronLeft, ChevronRight, Home, BarChart3, Settings, FileText, Calculator } from "lucide-react"
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -47,7 +47,11 @@ export default function Navbar() {
       id: "sales", 
       label: "Sales Entry",
       labelTh: "บันทึกยอดขาย", 
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      ),
       href: "/sales-entry", 
       roles: ["admin"],
       group: "data"
@@ -71,7 +75,11 @@ export default function Navbar() {
       id: "budget-management", 
       label: "Budget Management", 
       labelTh: "จัดการงบประมาณ", 
-      icon: <DollarSign className="w-5 h-5" />,
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+      ),
       href: "/budget-management", 
       roles: ["admin"],
       group: "management"
@@ -173,8 +181,8 @@ export default function Navbar() {
       />
       
       {/* Menu */}
-      <div className="absolute left-0 top-0 h-full w-72 bg-white shadow-xl flex-navbar">
-        <div className="flex items-center justify-between p-3 sm:p-4 border-b flex-navbar-header">
+      <div className="absolute left-0 top-0 h-full w-72 bg-white shadow-xl flex flex-col">
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b flex-shrink-0">
           <h1 className="text-base sm:text-lg font-bold text-gray-900">เมนู</h1>
           <Button
             variant="ghost"
@@ -186,8 +194,8 @@ export default function Navbar() {
           </Button>
         </div>
         
-        <nav className="flex-navbar-content p-3 sm:p-4 mobile-navbar-scrollable">
-          <div className="space-y-4 sm:space-y-6 pb-4">
+        <nav className="flex-1 p-3 sm:p-4 overflow-y-auto">
+          <div className="space-y-4 sm:space-y-6">
             {Object.entries(groupedItems).map(([groupKey, items]) => {
               if (items.length === 0) return null
               return (
@@ -224,7 +232,7 @@ export default function Navbar() {
         </nav>
         
         {/* User Profile & Logout */}
-        <div className="p-3 sm:p-4 border-t bg-gray-50 flex-navbar-footer">
+        <div className="p-3 sm:p-4 border-t bg-gray-50 flex-shrink-0">
           {user && (
             <div className="mb-3 sm:mb-4">
               <div className="flex items-center space-x-2 mb-2">
@@ -292,11 +300,11 @@ export default function Navbar() {
       </div>
       
       {/* Desktop Sidebar */}
-      <div className={`hidden lg:block fixed left-0 top-0 h-full bg-gray-900 text-white shadow-lg border-r border-gray-700 transition-all duration-300 z-30 flex-navbar ${
+      <div className={`hidden lg:block fixed left-0 top-0 h-full bg-gray-900 text-white shadow-lg border-r border-gray-700 transition-all duration-300 z-30 ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}>
         {/* Header */}
-        <div className="p-3 sm:p-4 border-b border-gray-700 flex-navbar-header">
+        <div className="p-3 sm:p-4 border-b border-gray-700">
           <div className="flex items-center justify-between">
             {!isCollapsed && (
               <div className="flex flex-col min-w-0 flex-1">
@@ -316,8 +324,8 @@ export default function Navbar() {
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-navbar-content p-2 lg:p-4 navbar-scrollable">
-          <div className="space-y-4 sm:space-y-6 pb-4">
+        <nav className="flex-1 p-2 lg:p-4 overflow-y-auto scrollbar-thin">
+          <div className="space-y-4 sm:space-y-6">
             {Object.entries(groupedItems).map(([groupKey, items]) => {
               if (items.length === 0) return null
               return (
@@ -357,7 +365,7 @@ export default function Navbar() {
         </nav>
 
         {/* User Profile & Logout */}
-        <div className="p-2 lg:p-4 border-t border-gray-700 flex-navbar-footer">
+        <div className="p-2 lg:p-4 border-t border-gray-700">
           {!isCollapsed && user && (
             <div className="mb-3">
               <div className="flex items-center space-x-2 mb-2">
