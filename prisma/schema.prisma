@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model BG_Project {
+  id              String               @id @default(uuid())
+  name            String
+  description     String?
+  type            String
+  status          String
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  createdBy       String
+  salesEntry      BG_Sales_Entry[]
+  expense_entries BG_Expense_Entries[]
+}
+
+model BG_Sales_Entry {
+  id           String      @id @default(uuid())
+  date         String
+  description  String?
+  quantity     Int
+  selling      Decimal
+  totalPrice   Decimal
+  createdBy    String
+  type         String
+  createdAt    DateTime    @default(now())
+  BG_project   BG_Project? @relation(fields: [bG_projectId], references: [id])
+  bG_projectId String?
+}
+
+model BG_Expense_Entries {
+  id           String      @id @default(uuid())
+  name         String
+  date         String
+  createdAt    DateTime    @default(now())
+  cost         Decimal
+  isPaid       Boolean     @default(false)
+  createdBy    String
+  BG_project   BG_Project? @relation(fields: [bG_projectId], references: [id])
+  bG_projectId String?
+}
+
+model BG_Revenue_Targets {
+  id           String      @id @default(uuid())
+  month        String
+  target       Decimal
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  createdBy    String
+}
+
+enum Project_Group {
+  SOFTWARE_DEV      @map("software_dev")
+  OUTSOURCE_SERVICE @map("outsource_service")
+  OTHER             @map("other")
+}
+
+enum Project_Status {
+  IN_PROGRESS @map("in_progress")
+  COMPLETED   @map("completed")
+  CANCEL      @map("cancel")
+}
+
+enum Expense_Items {
+  OUTSOURCE       @map("outsource")
+  SERVER          @map("server")
+  SUBSCRIPTION    @map("subscription")
+  INTERNET        @map("internet")
+  FOOD            @map("food")
+  SALES_INCENTIVE @map("sales_incentive")
+}
