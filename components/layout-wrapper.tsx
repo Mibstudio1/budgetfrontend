@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname } from 'next/navigation'
-import { NavbarProvider, useNavbar } from './navbar-context'
+import { NavbarProvider } from './navbar-context'
 import Navbar from './navbar'
 import ProtectedRoute from './protected-route'
 import { useAuth } from './auth-context'
@@ -78,31 +78,18 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   return (
     <NavbarProvider>
       <ProtectedRoute>
-        <MainContent>
-          {children}
-        </MainContent>
-        <SessionTimeoutWarning />
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <main className="transition-all duration-300 ease-in-out pt-16 lg:pt-6 lg:ml-20 xl:ml-64">
+            <div className="content-container animate-fade-in">
+              <div className="min-h-[calc(100vh-4rem)]">
+                {children}
+              </div>
+            </div>
+          </main>
+          <SessionTimeoutWarning />
+        </div>
       </ProtectedRoute>
     </NavbarProvider>
-  )
-}
-
-// Component to handle responsive margin based on sidebar state
-function MainContent({ children }: { children: React.ReactNode }) {
-  const { isCollapsed } = useNavbar()
-  
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className={`transition-all duration-300 ease-in-out pt-16 lg:pt-6 ${
-        isCollapsed ? 'lg:ml-20' : 'lg:ml-64'
-      }`}>
-        <div className="w-full animate-fade-in">
-          <div className="min-h-[calc(100vh-4rem)]">
-            {children}
-          </div>
-        </div>
-      </main>
-    </div>
   )
 } 

@@ -434,13 +434,17 @@
     }
   }
 
-  /* Responsive margin for sidebar */
-  .sidebar-collapsed {
-    margin-left: 5rem !important; /* 80px for collapsed sidebar */
+  /* Responsive content layout */
+  .content-container {
+    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
-  .sidebar-expanded {
-    margin-left: 16rem !important; /* 256px for expanded sidebar */
+  .content-container-wide {
+    @apply w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .content-container-narrow {
+    @apply w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8;
   }
   
   /* Improve focus styles */

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useNavbar } from "./navbar-context"
 import { useAuth } from "./auth-context"
-import { LogOut, User, Menu, X, ChevronLeft, ChevronRight, Home, BarChart3, Settings, FileText, Calculator } from "lucide-react"
+import { LogOut, User, Menu, X, ChevronLeft, ChevronRight, Home, BarChart3, Settings, FileText, Calculator, TrendingUp, DollarSign } from "lucide-react"
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -47,11 +47,7 @@ export default function Navbar() {
       id: "sales", 
       label: "Sales Entry",
       labelTh: "บันทึกยอดขาย", 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      ),
+      icon: <TrendingUp className="w-5 h-5" />,
       href: "/sales-entry", 
       roles: ["admin"],
       group: "data"
@@ -75,11 +71,7 @@ export default function Navbar() {
       id: "budget-management", 
       label: "Budget Management", 
       labelTh: "จัดการงบประมาณ", 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-        </svg>
-      ),
+      icon: <DollarSign className="w-5 h-5" />,
       href: "/budget-management", 
       roles: ["admin"],
       group: "management"
@@ -181,7 +173,7 @@ export default function Navbar() {
       />
       
       {/* Menu */}
-      <div className="absolute left-0 top-0 h-full w-72 bg-white shadow-xl flex flex-col">
+      <div className="absolute left-0 top-0 h-full w-72 bg-white shadow-xl flex-important flex-col-important">
         <div className="flex items-center justify-between p-3 sm:p-4 border-b flex-shrink-0">
           <h1 className="text-base sm:text-lg font-bold text-gray-900">เมนู</h1>
           <Button
@@ -194,8 +186,8 @@ export default function Navbar() {
           </Button>
         </div>
         
-        <nav className="flex-1 p-3 sm:p-4 overflow-y-auto">
-          <div className="space-y-4 sm:space-y-6">
+        <nav className="flex-1-important p-3 sm:p-4 overflow-y-auto-important min-h-0-important force-scroll">
+          <div className="space-y-4 sm:space-y-6 pb-4">
             {Object.entries(groupedItems).map(([groupKey, items]) => {
               if (items.length === 0) return null
               return (
@@ -232,7 +224,7 @@ export default function Navbar() {
         </nav>
         
         {/* User Profile & Logout */}
-        <div className="p-3 sm:p-4 border-t bg-gray-50 flex-shrink-0">
+        <div className="p-3 sm:p-4 border-t bg-gray-50 flex-shrink-0-important">
           {user && (
             <div className="mb-3 sm:mb-4">
               <div className="flex items-center space-x-2 mb-2">
@@ -269,42 +261,44 @@ export default function Navbar() {
       {/* Mobile Menu */}
       <MobileMenu />
       
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-gray-900 text-white border-b border-gray-700 shadow-sm">
-        <div className="flex items-center justify-between px-3 sm:px-4 py-3">
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="p-2 text-white hover:bg-gray-700"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-sm font-bold text-white truncate">Project Budget</h1>
-              <h2 className="text-xs text-gray-300 truncate">Management System</h2>
-            </div>
-          </div>
-          {user && (
-            <div className="flex items-center space-x-2 flex-shrink-0">
-              <div className="text-right hidden sm:block">
-                <div className="text-xs font-medium text-white truncate max-w-24">{user.name}</div>
-                <div className="text-xs text-gray-300 truncate">
-                  {user.role === 'admin' ? 'ผู้ดูแลระบบ' : user.role === 'employee' ? 'พนักงาน' : 'ผู้ใช้ทั่วไป'}
-                </div>
+      {/* Mobile Header - Only show when menu is closed */}
+      {!isMobileMenuOpen && (
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-gray-900 text-white border-b border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between px-3 sm:px-4 py-3">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-2 text-white hover:bg-gray-700"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-sm font-bold text-white truncate">Project Budget</h1>
+                <h2 className="text-xs text-gray-300 truncate">Management System</h2>
               </div>
             </div>
-          )}
+            {user && (
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                <div className="text-right hidden sm:block">
+                  <div className="text-xs font-medium text-white truncate max-w-24">{user.name}</div>
+                  <div className="text-xs text-gray-300 truncate">
+                    {user.role === 'admin' ? 'ผู้ดูแลระบบ' : user.role === 'employee' ? 'พนักงาน' : 'ผู้ใช้ทั่วไป'}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       
-      {/* Desktop Sidebar */}
-      <div className={`hidden lg:block fixed left-0 top-0 h-full bg-gray-900 text-white shadow-lg border-r border-gray-700 transition-all duration-300 z-30 ${
+      {/* Desktop Sidebar - Hidden on mobile */}
+      <div className={`hidden lg:block desktop-sidebar fixed left-0 top-0 h-full bg-gray-900 text-white shadow-lg border-r border-gray-700 transition-all duration-300 z-30 flex-important flex-col-important ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}>
         {/* Header */}
-        <div className="p-3 sm:p-4 border-b border-gray-700">
+        <div className="p-3 sm:p-4 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center justify-between">
             {!isCollapsed && (
               <div className="flex flex-col min-w-0 flex-1">
@@ -324,8 +318,8 @@ export default function Navbar() {
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 p-2 lg:p-4 overflow-y-auto scrollbar-thin">
-          <div className="space-y-4 sm:space-y-6">
+        <nav className="flex-1-important p-2 lg:p-4 overflow-y-auto-important min-h-0-important force-scroll">
+          <div className="space-y-4 sm:space-y-6 pb-4">
             {Object.entries(groupedItems).map(([groupKey, items]) => {
               if (items.length === 0) return null
               return (
@@ -365,7 +359,7 @@ export default function Navbar() {
         </nav>
 
         {/* User Profile & Logout */}
-        <div className="p-2 lg:p-4 border-t border-gray-700">
+        <div className="p-2 lg:p-4 border-t border-gray-700 flex-shrink-0-important">
           {!isCollapsed && user && (
             <div className="mb-3">
               <div className="flex items-center space-x-2 mb-2">
