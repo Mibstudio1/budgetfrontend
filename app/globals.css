@@ -48,6 +48,29 @@
     background-color: rgb(107 114 128);
   }
 
+  /* Dark theme scrollbar for sidebar */
+  .scrollbar-thin-dark {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(75 85 99) transparent;
+  }
+  
+  .scrollbar-thin-dark::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-thin-dark::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin-dark::-webkit-scrollbar-thumb {
+    background-color: rgb(75 85 99);
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin-dark::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(107 114 128);
+  }
+
   /* Line clamp utilities */
   .line-clamp-1 {
     overflow: hidden;

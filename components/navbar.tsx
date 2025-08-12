@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useNavbar } from "./navbar-context"
 import { useAuth } from "./auth-context"
-import { LogOut, User, Menu, X, ChevronLeft, ChevronRight, Home, BarChart3, Settings, FileText, Calculator } from "lucide-react"
+import { LogOut, User, Menu, X, ChevronLeft, ChevronRight, Home, BarChart3, Settings, FileText, Calculator, TrendingUp, DollarSign } from "lucide-react"
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -47,11 +47,7 @@ export default function Navbar() {
       id: "sales", 
       label: "Sales Entry",
       labelTh: "บันทึกยอดขาย", 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-        </svg>
-      ),
+      icon: <TrendingUp className="w-5 h-5" />,
       href: "/sales-entry", 
       roles: ["admin"],
       group: "data"
@@ -75,11 +71,7 @@ export default function Navbar() {
       id: "budget-management", 
       label: "Budget Management", 
       labelTh: "จัดการงบประมาณ", 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-        </svg>
-      ),
+      icon: <DollarSign className="w-5 h-5" />,
       href: "/budget-management", 
       roles: ["admin"],
       group: "management"
@@ -194,8 +186,8 @@ export default function Navbar() {
           </Button>
         </div>
         
-        <nav className="flex-1 p-3 sm:p-4 overflow-y-auto">
-          <div className="space-y-4 sm:space-y-6">
+        <nav className="flex-1 p-3 sm:p-4 overflow-y-auto scrollbar-thin min-h-0">
+          <div className="space-y-4 sm:space-y-6 pb-4">
             {Object.entries(groupedItems).map(([groupKey, items]) => {
               if (items.length === 0) return null
               return (
@@ -300,11 +292,11 @@ export default function Navbar() {
       </div>
       
       {/* Desktop Sidebar */}
-      <div className={`hidden lg:block fixed left-0 top-0 h-full bg-gray-900 text-white shadow-lg border-r border-gray-700 transition-all duration-300 z-30 ${
+      <div className={`hidden lg:block fixed left-0 top-0 h-full bg-gray-900 text-white shadow-lg border-r border-gray-700 transition-all duration-300 z-30 flex flex-col ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}>
         {/* Header */}
-        <div className="p-3 sm:p-4 border-b border-gray-700">
+        <div className="p-3 sm:p-4 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center justify-between">
             {!isCollapsed && (
               <div className="flex flex-col min-w-0 flex-1">
@@ -324,8 +316,8 @@ export default function Navbar() {
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 p-2 lg:p-4 overflow-y-auto scrollbar-thin">
-          <div className="space-y-4 sm:space-y-6">
+        <nav className="flex-1 p-2 lg:p-4 overflow-y-auto scrollbar-thin-dark min-h-0">
+          <div className="space-y-4 sm:space-y-6 pb-4">
             {Object.entries(groupedItems).map(([groupKey, items]) => {
               if (items.length === 0) return null
               return (
@@ -365,7 +357,7 @@ export default function Navbar() {
         </nav>
 
         {/* User Profile & Logout */}
-        <div className="p-2 lg:p-4 border-t border-gray-700">
+        <div className="p-2 lg:p-4 border-t border-gray-700 flex-shrink-0">
           {!isCollapsed && user && (
             <div className="mb-3">
               <div className="flex items-center space-x-2 mb-2">
