@@ -71,6 +71,77 @@
     background-color: rgb(107 114 128);
   }
 
+  /* Navbar scrollable styles */
+  .navbar-scrollable {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(75 85 99) transparent;
+  }
+  
+  .navbar-scrollable::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .navbar-scrollable::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .navbar-scrollable::-webkit-scrollbar-thumb {
+    background-color: rgb(75 85 99);
+    border-radius: 3px;
+  }
+  
+  .navbar-scrollable::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(107 114 128);
+  }
+
+  /* Mobile navbar scrollable */
+  .mobile-navbar-scrollable {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(156 163 175) transparent;
+  }
+  
+  .mobile-navbar-scrollable::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .mobile-navbar-scrollable::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .mobile-navbar-scrollable::-webkit-scrollbar-thumb {
+    background-color: rgb(156 163 175);
+    border-radius: 3px;
+  }
+  
+  .mobile-navbar-scrollable::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(107 114 128);
+  }
+
+  /* Flexbox utilities for navbar */
+  .flex-navbar {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .flex-navbar-header {
+    flex-shrink: 0;
+  }
+
+  .flex-navbar-content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .flex-navbar-footer {
+    flex-shrink: 0;
+  }
+
   /* Line clamp utilities */
   .line-clamp-1 {
     overflow: hidden;

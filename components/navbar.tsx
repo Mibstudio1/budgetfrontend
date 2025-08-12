@@ -173,8 +173,8 @@ export default function Navbar() {
       />
       
       {/* Menu */}
-      <div className="absolute left-0 top-0 h-full w-72 bg-white shadow-xl flex flex-col">
-        <div className="flex items-center justify-between p-3 sm:p-4 border-b flex-shrink-0">
+      <div className="absolute left-0 top-0 h-full w-72 bg-white shadow-xl flex-navbar">
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b flex-navbar-header">
           <h1 className="text-base sm:text-lg font-bold text-gray-900">เมนู</h1>
           <Button
             variant="ghost"
@@ -186,7 +186,7 @@ export default function Navbar() {
           </Button>
         </div>
         
-        <nav className="flex-1 p-3 sm:p-4 overflow-y-auto scrollbar-thin min-h-0">
+        <nav className="flex-navbar-content p-3 sm:p-4 mobile-navbar-scrollable">
           <div className="space-y-4 sm:space-y-6 pb-4">
             {Object.entries(groupedItems).map(([groupKey, items]) => {
               if (items.length === 0) return null
@@ -224,7 +224,7 @@ export default function Navbar() {
         </nav>
         
         {/* User Profile & Logout */}
-        <div className="p-3 sm:p-4 border-t bg-gray-50 flex-shrink-0">
+        <div className="p-3 sm:p-4 border-t bg-gray-50 flex-navbar-footer">
           {user && (
             <div className="mb-3 sm:mb-4">
               <div className="flex items-center space-x-2 mb-2">
@@ -292,11 +292,11 @@ export default function Navbar() {
       </div>
       
       {/* Desktop Sidebar */}
-      <div className={`hidden lg:block fixed left-0 top-0 h-full bg-gray-900 text-white shadow-lg border-r border-gray-700 transition-all duration-300 z-30 flex flex-col ${
+      <div className={`hidden lg:block fixed left-0 top-0 h-full bg-gray-900 text-white shadow-lg border-r border-gray-700 transition-all duration-300 z-30 flex-navbar ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}>
         {/* Header */}
-        <div className="p-3 sm:p-4 border-b border-gray-700 flex-shrink-0">
+        <div className="p-3 sm:p-4 border-b border-gray-700 flex-navbar-header">
           <div className="flex items-center justify-between">
             {!isCollapsed && (
               <div className="flex flex-col min-w-0 flex-1">
@@ -316,7 +316,7 @@ export default function Navbar() {
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 p-2 lg:p-4 overflow-y-auto scrollbar-thin-dark min-h-0">
+        <nav className="flex-navbar-content p-2 lg:p-4 navbar-scrollable">
           <div className="space-y-4 sm:space-y-6 pb-4">
             {Object.entries(groupedItems).map(([groupKey, items]) => {
               if (items.length === 0) return null
@@ -357,7 +357,7 @@ export default function Navbar() {
         </nav>
 
         {/* User Profile & Logout */}
-        <div className="p-2 lg:p-4 border-t border-gray-700 flex-shrink-0">
+        <div className="p-2 lg:p-4 border-t border-gray-700 flex-navbar-footer">
           {!isCollapsed && user && (
             <div className="mb-3">
               <div className="flex items-center space-x-2 mb-2">
