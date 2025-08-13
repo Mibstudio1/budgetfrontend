@@ -25,6 +25,7 @@ interface LocalExpenseRecord {
   projectName?: string
   status: boolean
   category: string
+  note?: string
 }
 
 interface ExpenseItem {
@@ -80,6 +81,9 @@ export default function ExpenseEntry() {
     }
   })
 
+  // เพิ่ม state สำหรับเก็บหมวดหมู่ค่าใช้จ่าย
+  const [expenseCategories, setExpenseCategories] = useState<any[]>([])
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(8)
@@ -88,6 +92,9 @@ export default function ExpenseEntry() {
   const [filteredExpenseItems, setFilteredExpenseItems] = useState<ExpenseItem[]>([])
   const [showItemDropdown, setShowItemDropdown] = useState(false)
   const [itemSearchValue, setItemSearchValue] = useState("")
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
+  const [categorySearchValue, setCategorySearchValue] = useState("")
+  const [filteredCategories, setFilteredCategories] = useState<any[]>([])
   const [expenseItemService] = useState(() => {
     try {
       const { expenseItemService } = require('@/lib/services')
@@ -104,6 +111,11 @@ export default function ExpenseEntry() {
     fetchData()
   }, [])
 
+  // Debug expense categories
+  useEffect(() => {
+    console.log('Expense categories updated:', expenseCategories)
+  }, [expenseCategories])
+
   // Filter expense items based on search
   useEffect(() => {
     if (itemSearchValue.trim() === "") {
@@ -116,6 +128,18 @@ export default function ExpenseEntry() {
       setFilteredExpenseItems(filtered)
     }
   }, [itemSearchValue, expenseItems])
+
+  // Filter categories based on search
+  useEffect(() => {
+    if (categorySearchValue.trim() === "") {
+      setFilteredCategories(expenseCategories)
+    } else {
+      const filtered = expenseCategories.filter(category => 
+        category.name.toLowerCase().includes(categorySearchValue.toLowerCase())
+      )
+      setFilteredCategories(filtered)
+    }
+  }, [categorySearchValue, expenseCategories])
 
   // Refetch data when component becomes visible (to get latest data)
   useEffect(() => {
@@ -231,7 +255,8 @@ export default function ExpenseEntry() {
             amount: expense.amount || expense.cost,
             projectName: expense.projectName,
             status: expense.status === true || expense.isPaid === true, // ตรวจสอบทั้ง status และ isPaid
-            category: expense.category || "Other"
+            category: expense.category || "Other",
+            note: expense.note
           }))
           setExpenses(expenseRecords)
           
@@ -242,14 +267,24 @@ export default function ExpenseEntry() {
           // ดึงหมวดหมู่จาก API category
           if (categoryService) {
             try {
+              console.log('Fetching expense categories from API...')
               const categoryResponse = await categoryService.getExpenseCategories()
-                        if (categoryResponse.success && categoryResponse.result && Array.isArray(categoryResponse.result)) {
-            const categoryNames = categoryResponse.result.map((cat: any) => cat.name)
-            setAvailableCategories(prev => [...new Set([...prev, ...categoryNames])].sort())
-          }
+              console.log('Category response:', categoryResponse)
+              
+              if (categoryResponse.success && categoryResponse.result && categoryResponse.result.result && Array.isArray(categoryResponse.result.result)) {
+                const categoryNames = categoryResponse.result.result.map((cat: any) => cat.name)
+                console.log('Category names:', categoryNames)
+                setAvailableCategories(prev => [...new Set([...prev, ...categoryNames])].sort())
+                setExpenseCategories(categoryResponse.result.result)
+                console.log('Expense categories set:', categoryResponse.result.result)
+              } else {
+                console.log('Category response structure:', categoryResponse)
+              }
             } catch (error) {
               console.error('Error fetching categories from API:', error)
             }
+          } else {
+            console.log('Category service not available')
           }
         }
       } catch (error) {
@@ -282,10 +317,14 @@ export default function ExpenseEntry() {
       return
     }
     
+    // หาหมวดหมู่ที่ตรงกับ group ของ item
+    const matchingCategory = expenseCategories.find(cat => cat.name === item.group)
+    const categoryName = matchingCategory ? matchingCategory.name : item.group
+    
     setFormData(prev => ({
       ...prev,
       item: item.name,
-      group: item.group
+      group: categoryName
     }))
     setItemSearchValue(item.name)
     setShowItemDropdown(false)
@@ -311,6 +350,48 @@ export default function ExpenseEntry() {
         item: "",
         group: "",
         customItem: ""
+      }))
+    }
+  }
+
+  const handleCategorySelect = (category: any) => {
+    // ไม่ให้เลือก "เพิ่มหมวดหมู่ใหม่" เป็นหมวดหมู่ปกติ
+    if (category.name === "เพิ่มหมวดหมู่ใหม่") {
+      setFormData(prev => ({
+        ...prev,
+        group: "เพิ่มหมวดหมู่ใหม่"
+      }))
+      setCategorySearchValue("เพิ่มหมวดหมู่ใหม่")
+      setShowCategoryDropdown(false)
+      return
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      group: category.name
+    }))
+    setCategorySearchValue(category.name)
+    setShowCategoryDropdown(false)
+  }
+
+  const handleCategorySearchChange = (value: string) => {
+    setCategorySearchValue(value)
+    setShowCategoryDropdown(true)
+    
+    // If user clears the input, reset the form
+    if (value === "") {
+      setFormData(prev => ({
+        ...prev,
+        group: ""
+      }))
+    }
+    
+    // If user starts typing and had "เพิ่มหมวดหมู่ใหม่" selected, clear it
+    if (formData.group === "เพิ่มหมวดหมู่ใหม่" && value !== "เพิ่มหมวดหมู่ใหม่") {
+      setFormData(prev => ({
+        ...prev,
+        group: "",
+        customGroup: ""
       }))
     }
   }
@@ -381,7 +462,8 @@ export default function ExpenseEntry() {
         projectId: selectedProject.id,
         isPaid: formData.isPaid,
         createdBy: user?.name || 'system',
-        category: categoryName || 'อื่นๆ'
+        category: categoryName || 'อื่นๆ',
+        note: formData.note || ""
       }
 
       console.log('Sending expense data:', expenseData)
@@ -675,28 +757,63 @@ export default function ExpenseEntry() {
                     required
                   />
                 </div>
-                <div>
+                <div className="relative">
                   <Label htmlFor="group" className="text-sm text-gray-700">หมวดหมู่</Label>
-                  <Select value={formData.group} onValueChange={(value) => handleInputChange("group", value)}>
-                    <SelectTrigger className="bg-white border-gray-300 text-sm">
-                      <SelectValue placeholder="เลือกหมวดหมู่" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Outsource">Outsource</SelectItem>
-                      <SelectItem value="Server">Server</SelectItem>
-                      <SelectItem value="Tool">Tool</SelectItem>
-                      <SelectItem value="Utility">Utility</SelectItem>
-                      <SelectItem value="Salary">Salary</SelectItem>
-                      <SelectItem value="Rental">Rental</SelectItem>
-                      <SelectItem value="Incentive">Incentive</SelectItem>
-                      {availableCategories.filter(cat => !["Outsource", "Server", "Tool", "Utility", "Salary", "Rental", "Incentive"].includes(cat)).map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
+                  <div className="relative">
+                    <Input
+                      id="group"
+                      type="text"
+                      value={categorySearchValue}
+                      onChange={(e) => handleCategorySearchChange(e.target.value)}
+                      placeholder="พิมพ์เพื่อค้นหาหมวดหมู่..."
+                      className="bg-white border-gray-300 text-sm"
+                      required
+                      onFocus={() => {
+                        setShowCategoryDropdown(true)
+                        // If "เพิ่มหมวดหมู่ใหม่" is selected, show all options
+                        if (formData.group === "เพิ่มหมวดหมู่ใหม่") {
+                          setFilteredCategories(expenseCategories.filter(cat => cat.name !== "เพิ่มหมวดหมู่ใหม่"))
+                        }
+                      }}
+                      onClick={() => {
+                        setShowCategoryDropdown(true)
+                        // If "เพิ่มหมวดหมู่ใหม่" is selected, show all options
+                        if (formData.group === "เพิ่มหมวดหมู่ใหม่") {
+                          setFilteredCategories(expenseCategories.filter(cat => cat.name !== "เพิ่มหมวดหมู่ใหม่"))
+                        }
+                      }}
+                      onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 200)}
+                    />
+                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  </div>
+                  
+                  {/* Category Autocomplete Dropdown */}
+                  {showCategoryDropdown && filteredCategories.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {filteredCategories.filter(category => category.name !== "เพิ่มหมวดหมู่ใหม่").map((category) => (
+                        <div
+                          key={category.id}
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          onClick={() => handleCategorySelect(category)}
+                        >
+                          <div className="font-medium text-sm truncate">{category.name}</div>
+                        </div>
                       ))}
-                      <SelectItem value="เพิ่มหมวดหมู่ใหม่">เพิ่มหมวดหมู่ใหม่</SelectItem>
-                    </SelectContent>
-                  </Select>
+                      <div
+                        className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 bg-blue-50"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, group: "เพิ่มหมวดหมู่ใหม่" }))
+                          setCategorySearchValue("เพิ่มหมวดหมู่ใหม่")
+                          setShowCategoryDropdown(false)
+                          // Clear any existing custom group
+                          setFormData(prev => ({ ...prev, customGroup: "" }))
+                        }}
+                      >
+                        <div className="font-medium text-sm text-blue-600">+ เพิ่มหมวดหมู่ใหม่</div>
+                        <div className="text-xs text-blue-500">สร้างหมวดหมู่ใหม่</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -950,23 +1067,23 @@ export default function ExpenseEntry() {
                 <Card key={index} className="border border-gray-200 hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-medium text-lg text-gray-900">{expense.name}</h3>
-                          <Badge variant="outline">{expense.category}</Badge>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <h3 className="font-medium text-lg text-gray-900 truncate">{expense.name}</h3>
+                          <Badge variant="outline" className="flex-shrink-0">{expense.category}</Badge>
                           {expense.status ? (
-                            <Badge className="bg-green-100 text-green-800">ชำระแล้ว</Badge>
+                            <Badge className="bg-green-100 text-green-800 flex-shrink-0">ชำระแล้ว</Badge>
                           ) : (
-                            <Badge variant="destructive">ค้างจ่าย</Badge>
+                            <Badge variant="destructive" className="flex-shrink-0">ค้างจ่าย</Badge>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600 mb-1">{expense.projectName || "ไม่มีโปรเจกต์"}</p>
+                        <p className="text-sm text-gray-600 mb-1 truncate">{expense.projectName || "ไม่มีโปรเจกต์"}</p>
                         <p className="text-xs text-gray-500">{expense.date}</p>
                         {expense.note && (
-                          <p className="text-sm text-gray-600 mt-2 italic">"{expense.note}"</p>
+                          <p className="text-sm text-gray-600 mt-2 italic break-words">"{expense.note}"</p>
                         )}
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0 ml-2">
                         <p className="font-medium text-xl text-red-600">{expense.amount.toLocaleString("th-TH")} บาท</p>
                       </div>
                     </div>
@@ -1074,3 +1191,4 @@ export default function ExpenseEntry() {
     </div>
   )
 }
+

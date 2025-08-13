@@ -180,7 +180,8 @@ export default function SalesEntry() {
           qty: record.quantity?.toString() || '1',
           price: record.selling?.toString() || record.totalPrice?.toString() || '0',
           totalPrice: record.totalPrice?.toString() || '0',
-          type: record.type || 'ไม่ระบุ'
+          type: record.type || 'ไม่ระบุ',
+          note: record.note
         }
       })
       setSalesHistory(mappedRecords)
