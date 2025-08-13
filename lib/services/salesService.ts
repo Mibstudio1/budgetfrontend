@@ -18,6 +18,7 @@ export interface SalesEntry {
   totalPrice: number
   createdBy: string
   type: string
+  note?: string
   bG_projectId?: string
   createdAt: string
 }
@@ -29,6 +30,7 @@ export interface CreateSalesEntryRequest {
   totalPrice: number
   type: string
   createdBy: string
+  note?: string
 }
 
 export interface UpdateSalesEntryRequest {

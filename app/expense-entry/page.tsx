@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Edit, Trash2 } from "lucide-react"
+import { Search, Plus, Edit, Trash2, ChevronDown } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { expenseService, CreateExpenseEntryRequest } from "@/lib/services/expenseService"
 import { optionsService } from "@/lib/services/optionsService"
@@ -48,6 +49,7 @@ export default function ExpenseEntry() {
     isPaid: false,
     customItem: "", // เพิ่มฟิลด์สำหรับกรอกข้อมูลอิสระ
     customGroup: "", // เพิ่มฟิลด์สำหรับกรอกหมวดหมู่อิสระ
+    note: "", // เพิ่มฟิลด์สำหรับหมายเหตุ
   })
 
   const [expenses, setExpenses] = useState<LocalExpenseRecord[]>([])
@@ -83,6 +85,9 @@ export default function ExpenseEntry() {
   const [itemsPerPage] = useState(8)
 
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([])
+  const [filteredExpenseItems, setFilteredExpenseItems] = useState<ExpenseItem[]>([])
+  const [showItemDropdown, setShowItemDropdown] = useState(false)
+  const [itemSearchValue, setItemSearchValue] = useState("")
   const [expenseItemService] = useState(() => {
     try {
       const { expenseItemService } = require('@/lib/services')
@@ -98,6 +103,19 @@ export default function ExpenseEntry() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  // Filter expense items based on search
+  useEffect(() => {
+    if (itemSearchValue.trim() === "") {
+      setFilteredExpenseItems(expenseItems)
+    } else {
+      const filtered = expenseItems.filter(item => 
+        item.name.toLowerCase().includes(itemSearchValue.toLowerCase()) ||
+        item.group.toLowerCase().includes(itemSearchValue.toLowerCase())
+      )
+      setFilteredExpenseItems(filtered)
+    }
+  }, [itemSearchValue, expenseItems])
 
   // Refetch data when component becomes visible (to get latest data)
   useEffect(() => {
@@ -122,16 +140,17 @@ export default function ExpenseEntry() {
         try {
           const itemsResponse = await expenseItemService.getAllExpenseItems()
           if (itemsResponse.success && itemsResponse.result && itemsResponse.result.result && Array.isArray(itemsResponse.result.result)) {
-            const items = itemsResponse.result.result.map((item: any) => ({
+            const items = itemsResponse.result.result.filter((item: any) => item.isActive).map((item: any) => ({
               name: item.name,
               group: item.group
             }))
             // Add "เพิ่มรายการใหม่" option
             items.push({ name: "เพิ่มรายการใหม่", group: "Custom" })
             setExpenseItems(items)
+            setFilteredExpenseItems(items)
           } else {
             // Fallback to default items if API fails
-            setExpenseItems([
+            const fallbackItems = [
               { name: "ค่าจ้าง Outsource", group: "Outsource" },
               { name: "ค่า Server", group: "Server" },
               { name: "ค่า Subscription", group: "Tool" },
@@ -143,7 +162,9 @@ export default function ExpenseEntry() {
               { name: "ค่าจ้างพนักงาน", group: "Salary" },
               { name: "ค่า incentive การขาย", group: "Incentive" },
               { name: "เพิ่มรายการใหม่", group: "Custom" }
-            ])
+            ]
+            setExpenseItems(fallbackItems)
+            setFilteredExpenseItems(fallbackItems)
           }
         } catch (error) {
           console.error('Error fetching expense items:', error)
@@ -249,6 +270,51 @@ export default function ExpenseEntry() {
     }))
   }
 
+  const handleItemSelect = (item: ExpenseItem) => {
+    // ไม่ให้เลือก "เพิ่มรายการใหม่" เป็นรายการปกติ
+    if (item.name === "เพิ่มรายการใหม่") {
+      setFormData(prev => ({
+        ...prev,
+        item: "เพิ่มรายการใหม่"
+      }))
+      setItemSearchValue("เพิ่มรายการใหม่")
+      setShowItemDropdown(false)
+      return
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      item: item.name,
+      group: item.group
+    }))
+    setItemSearchValue(item.name)
+    setShowItemDropdown(false)
+  }
+
+  const handleItemSearchChange = (value: string) => {
+    setItemSearchValue(value)
+    setShowItemDropdown(true)
+    
+    // If user clears the input, reset the form
+    if (value === "") {
+      setFormData(prev => ({
+        ...prev,
+        item: "",
+        group: ""
+      }))
+    }
+    
+    // If user starts typing and had "เพิ่มรายการใหม่" selected, clear it
+    if (formData.item === "เพิ่มรายการใหม่" && value !== "เพิ่มรายการใหม่") {
+      setFormData(prev => ({
+        ...prev,
+        item: "",
+        group: "",
+        customItem: ""
+      }))
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -333,7 +399,9 @@ export default function ExpenseEntry() {
           isPaid: false,
           customItem: "",
           customGroup: "",
+          note: "",
         })
+        setItemSearchValue("")
         
         // Close dialog
         setIsDialogOpen(false)
@@ -517,20 +585,64 @@ export default function ExpenseEntry() {
                     required
                   />
                 </div>
-                <div>
+                <div className="relative">
                   <Label htmlFor="item" className="text-sm text-gray-700">รายการค่าใช้จ่าย</Label>
-                  <Select value={formData.item} onValueChange={(value) => handleInputChange("item", value)}>
-                    <SelectTrigger className="bg-white border-gray-300 text-sm">
-                      <SelectValue placeholder="เลือกรายการ" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {expenseItems.map((item) => (
-                        <SelectItem key={item.name} value={item.name}>
-                          {item.name}
-                        </SelectItem>
+                  <div className="relative">
+                    <Input
+                      id="item"
+                      type="text"
+                      value={itemSearchValue}
+                      onChange={(e) => handleItemSearchChange(e.target.value)}
+                      placeholder="พิมพ์เพื่อค้นหารายการค่าใช้จ่าย..."
+                      className="bg-white border-gray-300 text-sm"
+                      required
+                      onFocus={() => {
+                        setShowItemDropdown(true)
+                        // If "เพิ่มรายการใหม่" is selected, show all options
+                        if (formData.item === "เพิ่มรายการใหม่") {
+                          setFilteredExpenseItems(expenseItems.filter(item => item.name !== "เพิ่มรายการใหม่"))
+                        }
+                      }}
+                      onClick={() => {
+                        setShowItemDropdown(true)
+                        // If "เพิ่มรายการใหม่" is selected, show all options
+                        if (formData.item === "เพิ่มรายการใหม่") {
+                          setFilteredExpenseItems(expenseItems.filter(item => item.name !== "เพิ่มรายการใหม่"))
+                        }
+                      }}
+                      onBlur={() => setTimeout(() => setShowItemDropdown(false), 200)}
+                    />
+                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  </div>
+                  
+                  {/* Autocomplete Dropdown */}
+                  {showItemDropdown && filteredExpenseItems.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {filteredExpenseItems.filter(item => item.name !== "เพิ่มรายการใหม่").map((item) => (
+                        <div
+                          key={item.name}
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          onClick={() => handleItemSelect(item)}
+                        >
+                          <div className="font-medium text-sm">{item.name}</div>
+                          <div className="text-xs text-gray-500">{item.group}</div>
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
+                      <div
+                        className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 bg-blue-50"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, item: "เพิ่มรายการใหม่" }))
+                          setItemSearchValue("เพิ่มรายการใหม่")
+                          setShowItemDropdown(false)
+                          // Clear any existing custom item
+                          setFormData(prev => ({ ...prev, customItem: "" }))
+                        }}
+                      >
+                        <div className="font-medium text-sm text-blue-600">+ เพิ่มรายการใหม่</div>
+                        <div className="text-xs text-blue-500">สร้างรายการค่าใช้จ่ายใหม่</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -628,6 +740,18 @@ export default function ExpenseEntry() {
                   />
                   <Label htmlFor="isPaid" className="text-sm text-gray-700">ชำระแล้ว</Label>
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="note" className="text-sm text-gray-700">หมายเหตุ</Label>
+                <Textarea
+                  id="note"
+                  value={formData.note}
+                  onChange={(e) => handleInputChange("note", e.target.value)}
+                  placeholder="เพิ่มหมายเหตุหรือรายละเอียดเพิ่มเติม..."
+                  className="resize-none bg-white border-gray-300 text-sm"
+                  rows={3}
+                />
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
@@ -821,51 +945,52 @@ export default function ExpenseEntry() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {currentExpenses.map((expense, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-3 sm:p-4 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 truncate">{expense.name}</h3>
-                      <p className="text-xs sm:text-sm text-gray-600">{expense.date}</p>
-                      {expense.projectName && (
-                        <p className="text-xs text-blue-600">{expense.projectName}</p>
-                      )}
+                <Card key={index} className="border border-gray-200 hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-medium text-lg text-gray-900">{expense.name}</h3>
+                          <Badge variant="outline">{expense.category}</Badge>
+                          {expense.status ? (
+                            <Badge className="bg-green-100 text-green-800">ชำระแล้ว</Badge>
+                          ) : (
+                            <Badge variant="destructive">ค้างจ่าย</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">{expense.projectName || "ไม่มีโปรเจกต์"}</p>
+                        <p className="text-xs text-gray-500">{expense.date}</p>
+                        {expense.note && (
+                          <p className="text-sm text-gray-600 mt-2 italic">"{expense.note}"</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-xl text-red-600">{expense.amount.toLocaleString("th-TH")} บาท</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex justify-end space-x-2 pt-3 border-t border-gray-100">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => handleEditExpense(expense)}
-                        className="p-1 h-auto"
                       >
-                        <Edit className="w-3 h-3" />
+                        <Edit className="h-3 w-3 mr-1" />
+                        แก้ไข
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => handleDeleteExpense(expense.id)}
-                        className="p-1 h-auto text-red-600 hover:text-red-700"
+                        className="text-red-600 hover:text-red-700"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        ลบ
                       </Button>
-                      <Badge
-                        variant={expense.status ? "default" : "secondary"}
-                        className={`text-xs ${expense.status ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-                      >
-                        {expense.status ? "ชำระแล้ว" : "ยังไม่ชำระ"}
-                      </Badge>
                     </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg sm:text-xl font-bold text-gray-900">
-                      {expense.amount.toLocaleString("th-TH")} บาท
-                    </span>
-                    <Badge variant="outline" className="text-xs">
-                      {expense.category}
-                    </Badge>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </div>

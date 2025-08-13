@@ -17,6 +17,7 @@ export interface ExpenseEntry {
   isPaid: boolean
   createdBy: string
   category: string
+  note?: string
   bGProjectId?: string
   createdAt: string
 }
@@ -29,6 +30,7 @@ export interface CreateExpenseEntryRequest {
   isPaid: boolean
   createdBy: string
   category: string
+  note?: string
 }
 
 export interface UpdateExpenseEntryRequest {

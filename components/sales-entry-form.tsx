@@ -7,9 +7,11 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Search } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { Search, ChevronDown } from "lucide-react"
 import { salesService, CreateSalesEntryRequest } from "@/lib/services/salesService"
 import { projectService } from "@/lib/services/projectService"
+import { categoryService } from "@/lib/services/categoryService"
 import { useAuth } from "./auth-context"
 import { useToast } from "@/hooks/use-toast"
 
@@ -21,6 +23,15 @@ interface SalesEntry {
   sellingPrice: number
   totalPrice: number
   projectName: string
+  type: string
+  note?: string
+}
+
+interface SalesType {
+  id: string
+  name: string
+  category: string
+  isActive: boolean
 }
 
 interface Project {
@@ -40,23 +51,77 @@ export default function SalesEntryForm() {
     totalPrice: 0,
     projectId: "",
     projectName: "",
+    type: "",
+    note: "",
   })
 
   const [salesHistory, setSalesHistory] = useState<SalesEntry[]>([])
+  const [salesTypes, setSalesTypes] = useState<SalesType[]>([])
+  const [filteredSalesTypes, setFilteredSalesTypes] = useState<SalesType[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false)
+  const [typeSearchValue, setTypeSearchValue] = useState("")
 
   // Load data on component mount
   useEffect(() => {
     fetchData()
   }, [])
 
+  // Filter sales types based on search
+  useEffect(() => {
+    if (typeSearchValue.trim() === "") {
+      setFilteredSalesTypes(salesTypes)
+    } else {
+      const filtered = salesTypes.filter(type => 
+        type.name.toLowerCase().includes(typeSearchValue.toLowerCase()) ||
+        type.category.toLowerCase().includes(typeSearchValue.toLowerCase())
+      )
+      setFilteredSalesTypes(filtered)
+    }
+  }, [typeSearchValue, salesTypes])
+
   const fetchData = async () => {
     try {
       setIsLoading(true)
       
+      // Fetch sales types
+      try {
+        const salesTypesResponse = await categoryService.getSalesCategories()
+        if (salesTypesResponse.success && salesTypesResponse.result) {
+          const types = salesTypesResponse.result.filter((type: any) => type.isActive)
+          setSalesTypes(types)
+          setFilteredSalesTypes(types)
+        } else {
+          // Fallback data
+          const fallbackTypes = [
+            { id: "1", name: "การขายระบบ ERP", category: "Software", isActive: true },
+            { id: "2", name: "การดูแลระบบ Database", category: "Service", isActive: true },
+            { id: "3", name: "การพัฒนาระบบ Web", category: "Development", isActive: true },
+            { id: "4", name: "การให้คำปรึกษา IT", category: "Consulting", isActive: true },
+            { id: "5", name: "การฝึกอบรม", category: "Training", isActive: true },
+            { id: "6", name: "การบำรุงรักษาระบบ", category: "Maintenance", isActive: true }
+          ]
+          setSalesTypes(fallbackTypes)
+          setFilteredSalesTypes(fallbackTypes)
+        }
+      } catch (error) {
+        console.error('Error fetching sales types:', error)
+        // Fallback data
+        const fallbackTypes = [
+          { id: "1", name: "การขายระบบ ERP", category: "Software", isActive: true },
+          { id: "2", name: "การดูแลระบบ Database", category: "Service", isActive: true },
+          { id: "3", name: "การพัฒนาระบบ Web", category: "Development", isActive: true },
+          { id: "4", name: "การให้คำปรึกษา IT", category: "Consulting", isActive: true },
+          { id: "5", name: "การฝึกอบรม", category: "Training", isActive: true },
+          { id: "6", name: "การบำรุงรักษาระบบ", category: "Maintenance", isActive: true }
+        ]
+        setSalesTypes(fallbackTypes)
+        setFilteredSalesTypes(fallbackTypes)
+      }
+
       // Fetch projects
       const projectsResponse = await projectService.getAllProjects({
         projectName: "",
@@ -106,6 +171,30 @@ export default function SalesEntryForm() {
     setFormData(newFormData)
   }
 
+  const handleTypeSelect = (type: SalesType) => {
+    setFormData({
+      ...formData,
+      description: type.name,
+      type: type.category
+    })
+    setTypeSearchValue(type.name)
+    setShowTypeDropdown(false)
+  }
+
+  const handleTypeSearchChange = (value: string) => {
+    setTypeSearchValue(value)
+    setShowTypeDropdown(true)
+    
+    // If user clears the input, reset the form
+    if (value === "") {
+      setFormData({
+        ...formData,
+        description: "",
+        type: ""
+      })
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -136,8 +225,9 @@ export default function SalesEntryForm() {
         projectId: formData.projectId,
         description: formData.description,
         totalPrice: formData.totalPrice,
-        type: selectedProject.type,
+        type: formData.type || selectedProject.type,
         createdBy: user?.name || "unknown",
+        note: formData.note || ""
       }
 
       const response = await salesService.createSalesEntry(salesData)
@@ -156,7 +246,10 @@ export default function SalesEntryForm() {
           totalPrice: 0,
           projectId: "",
           projectName: "",
+          type: "",
+          note: "",
         })
+        setTypeSearchValue("")
 
         // Reload sales history
         await fetchData()
@@ -212,16 +305,38 @@ export default function SalesEntryForm() {
           />
         </div>
 
-        <div>
+        <div className="relative">
           <Label htmlFor="description">รายละเอียดการขาย</Label>
-          <Input
-            id="description"
-            value={formData.description}
-            onChange={(e) => handleInputChange("description", e.target.value)}
-            placeholder="เช่น การขายระบบ ERP, การดูแลระบบ Database"
-            required
-            disabled={saving}
-          />
+          <div className="relative">
+            <Input
+              id="description"
+              type="text"
+              value={typeSearchValue}
+              onChange={(e) => handleTypeSearchChange(e.target.value)}
+              placeholder="พิมพ์เพื่อค้นหารายการขาย..."
+              required
+              disabled={saving}
+              onFocus={() => setShowTypeDropdown(true)}
+              onBlur={() => setTimeout(() => setShowTypeDropdown(false), 200)}
+            />
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          </div>
+          
+          {/* Autocomplete Dropdown */}
+          {showTypeDropdown && filteredSalesTypes.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+              {filteredSalesTypes.map((type) => (
+                <div
+                  key={type.id}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                  onClick={() => handleTypeSelect(type)}
+                >
+                  <div className="font-medium">{type.name}</div>
+                  <div className="text-sm text-gray-500">{type.category}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
@@ -262,6 +377,18 @@ export default function SalesEntryForm() {
           />
         </div>
 
+        <div>
+          <Label htmlFor="type">ประเภทการขาย</Label>
+          <Input
+            id="type"
+            value={formData.type}
+            readOnly
+            className="bg-gray-50"
+            placeholder="จะแสดงอัตโนมัติเมื่อเลือกรายการ"
+            disabled={saving}
+          />
+        </div>
+
         <div className="md:col-span-2">
           <Label htmlFor="projectId">ชื่อโปรเจกต์</Label>
           <Select 
@@ -280,6 +407,19 @@ export default function SalesEntryForm() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="md:col-span-2">
+          <Label htmlFor="note">หมายเหตุ</Label>
+          <Textarea
+            id="note"
+            value={formData.note}
+            onChange={(e) => handleInputChange("note", e.target.value)}
+            placeholder="เพิ่มหมายเหตุหรือรายละเอียดเพิ่มเติม..."
+            className="resize-none"
+            rows={3}
+            disabled={saving}
+          />
         </div>
 
         <div className="md:col-span-2 flex justify-end">
@@ -304,29 +444,34 @@ export default function SalesEntryForm() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
             {filteredSales.length > 0 ? (
               filteredSales.map((sale) => (
-                <div
-                  key={sale.id}
-                  className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium">{sale.description}</h4>
-                      <Badge variant="outline">{sale.projectName}</Badge>
+                <Card key={sale.id} className="border border-gray-200 hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-medium text-lg">{sale.description}</h4>
+                          <Badge variant="outline">{sale.type}</Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">{sale.projectName}</p>
+                        <p className="text-xs text-gray-500">{sale.date}</p>
+                        <p className="text-sm text-gray-600 mb-1">
+                          จำนวน: {sale.quantity} | ราคาต่อหน่วย: {sale.sellingPrice.toLocaleString("th-TH")} บาท
+                        </p>
+                        {sale.note && (
+                          <p className="text-sm text-gray-600 mt-2 italic">"{sale.note}"</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-xl text-green-600">
+                          {sale.totalPrice.toLocaleString("th-TH")} บาท
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      จำนวน: {sale.quantity} | ราคาต่อหน่วย: {sale.sellingPrice.toLocaleString("th-TH")} บาท
-                    </p>
-                    <p className="text-xs text-gray-500">{sale.date}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-lg text-green-600">
-                      {sale.totalPrice.toLocaleString("th-TH")} บาท
-                    </p>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))
             ) : (
               <div className="text-center py-8 text-gray-500">

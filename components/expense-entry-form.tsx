@@ -8,26 +8,32 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Search } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { Search, ChevronDown } from "lucide-react"
 import { expenseService, CreateExpenseEntryRequest } from "@/lib/services/expenseService"
 import { projectService } from "@/lib/services/projectService"
-import { optionsService } from "@/lib/services/optionsService"
+import { expenseItemService } from "@/lib/services/expenseItemService"
 import { useAuth } from "./auth-context"
 import { useToast } from "@/hooks/use-toast"
 
 interface ExpenseEntry {
   id: string
   date: string
-  item: string
-  amount: number
+  name: string
+  cost: number
   category: string
-  projectName: string
+  projectName?: string
   isPaid: boolean
+  note?: string
 }
 
 interface ExpenseItem {
+  id: string
   name: string
-  category: string
+  group: string
+  description?: string
+  isActive: boolean
+  usageCount: number
 }
 
 interface Project {
@@ -47,19 +53,36 @@ export default function ExpenseEntryForm() {
     projectId: "",
     projectName: "",
     isPaid: false,
+    note: "",
   })
 
   const [expenseHistory, setExpenseHistory] = useState<ExpenseEntry[]>([])
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([])
+  const [filteredExpenseItems, setFilteredExpenseItems] = useState<ExpenseItem[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showItemDropdown, setShowItemDropdown] = useState(false)
+  const [itemSearchValue, setItemSearchValue] = useState("")
 
   // Load data on component mount
   useEffect(() => {
     fetchData()
   }, [])
+
+  // Filter expense items based on search
+  useEffect(() => {
+    if (itemSearchValue.trim() === "") {
+      setFilteredExpenseItems(expenseItems)
+    } else {
+      const filtered = expenseItems.filter(item => 
+        item.name.toLowerCase().includes(itemSearchValue.toLowerCase()) ||
+        item.group.toLowerCase().includes(itemSearchValue.toLowerCase())
+      )
+      setFilteredExpenseItems(filtered)
+    }
+  }, [itemSearchValue, expenseItems])
 
   const fetchData = async () => {
     try {
@@ -67,30 +90,45 @@ export default function ExpenseEntryForm() {
       
       // Fetch expense items
       try {
-        const expenseItemsResponse = await optionsService.getExpenseItems()
-        if (Array.isArray(expenseItemsResponse)) {
-          setExpenseItems(expenseItemsResponse.map(item => ({
-            name: item,
-            category: item // Use the item name as category for now
-          })))
+        const expenseItemsResponse = await expenseItemService.getAllExpenseItems()
+        if (expenseItemsResponse.success && expenseItemsResponse.result?.result) {
+          const items = expenseItemsResponse.result.result.filter((item: any) => item.isActive)
+          setExpenseItems(items)
+          setFilteredExpenseItems(items)
         } else {
-          setExpenseItems([
-            { name: "Server", category: "Technology" },
-            { name: "Software", category: "Technology" },
-            { name: "Office Supplies", category: "General" },
-            { name: "Travel", category: "General" },
-            { name: "Marketing", category: "Business" }
-          ])
+          // Fallback data
+          const fallbackItems = [
+            { id: "1", name: "ค่าจ้าง Outsource", group: "Outsource", isActive: true, usageCount: 0 },
+            { id: "2", name: "ค่า Server", group: "Server", isActive: true, usageCount: 0 },
+            { id: "3", name: "ค่า Subscription", group: "Tool", isActive: true, usageCount: 0 },
+            { id: "4", name: "ค่าน้ำ", group: "Utility", isActive: true, usageCount: 0 },
+            { id: "5", name: "ค่าไฟ", group: "Utility", isActive: true, usageCount: 0 },
+            { id: "6", name: "ค่า Internet", group: "Utility", isActive: true, usageCount: 0 },
+            { id: "7", name: "ค่าเลี้ยงอาหาร", group: "Salary", isActive: true, usageCount: 0 },
+            { id: "8", name: "ค่าเช่าออฟฟิส", group: "Rental", isActive: true, usageCount: 0 },
+            { id: "9", name: "ค่าจ้างพนักงาน", group: "Salary", isActive: true, usageCount: 0 },
+            { id: "10", name: "ค่า incentive การขาย", group: "Incentive", isActive: true, usageCount: 0 }
+          ]
+          setExpenseItems(fallbackItems)
+          setFilteredExpenseItems(fallbackItems)
         }
       } catch (error) {
         console.error('Error fetching expense items:', error)
-        setExpenseItems([
-          { name: "Server", category: "Technology" },
-          { name: "Software", category: "Technology" },
-          { name: "Office Supplies", category: "General" },
-          { name: "Travel", category: "General" },
-          { name: "Marketing", category: "Business" }
-        ])
+        // Fallback data
+        const fallbackItems = [
+          { id: "1", name: "ค่าจ้าง Outsource", group: "Outsource", isActive: true, usageCount: 0 },
+          { id: "2", name: "ค่า Server", group: "Server", isActive: true, usageCount: 0 },
+          { id: "3", name: "ค่า Subscription", group: "Tool", isActive: true, usageCount: 0 },
+          { id: "4", name: "ค่าน้ำ", group: "Utility", isActive: true, usageCount: 0 },
+          { id: "5", name: "ค่าไฟ", group: "Utility", isActive: true, usageCount: 0 },
+          { id: "6", name: "ค่า Internet", group: "Utility", isActive: true, usageCount: 0 },
+          { id: "7", name: "ค่าเลี้ยงอาหาร", group: "Salary", isActive: true, usageCount: 0 },
+          { id: "8", name: "ค่าเช่าออฟฟิส", group: "Rental", isActive: true, usageCount: 0 },
+          { id: "9", name: "ค่าจ้างพนักงาน", group: "Salary", isActive: true, usageCount: 0 },
+          { id: "10", name: "ค่า incentive การขาย", group: "Incentive", isActive: true, usageCount: 0 }
+        ]
+        setExpenseItems(fallbackItems)
+        setFilteredExpenseItems(fallbackItems)
       }
 
       // Fetch projects
@@ -129,7 +167,7 @@ export default function ExpenseEntryForm() {
     if (field === "item") {
       const selectedItem = expenseItems.find((item) => item.name === value)
       if (selectedItem) {
-        newFormData.category = selectedItem.category
+        newFormData.category = selectedItem.group
       }
     }
 
@@ -142,6 +180,30 @@ export default function ExpenseEntryForm() {
     }
 
     setFormData(newFormData)
+  }
+
+  const handleItemSelect = (item: ExpenseItem) => {
+    setFormData({
+      ...formData,
+      item: item.name,
+      category: item.group
+    })
+    setItemSearchValue(item.name)
+    setShowItemDropdown(false)
+  }
+
+  const handleItemSearchChange = (value: string) => {
+    setItemSearchValue(value)
+    setShowItemDropdown(true)
+    
+    // If user clears the input, reset the form
+    if (value === "") {
+      setFormData({
+        ...formData,
+        item: "",
+        category: ""
+      })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -176,10 +238,11 @@ export default function ExpenseEntryForm() {
         projectId: formData.projectId,
         isPaid: formData.isPaid,
         createdBy: user?.name || "unknown",
-        category: formData.category || "General"
+        category: formData.category || "General",
+        note: formData.note || ""
       }
 
-      const response = await expenseService.createExpenseEntry(expenseData)
+      const response = await expenseService.createExpense(expenseData)
       if (response.success) {
         toast({
           title: "บันทึกสำเร็จ",
@@ -195,7 +258,9 @@ export default function ExpenseEntryForm() {
           projectId: "",
           projectName: "",
           isPaid: false,
+          note: "",
         })
+        setItemSearchValue("")
 
         // Reload expense history
         await fetchData()
@@ -216,8 +281,8 @@ export default function ExpenseEntryForm() {
 
   const filteredExpenses = expenseHistory.filter(
     (expense) =>
-      expense.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.projectName.toLowerCase().includes(searchTerm.toLowerCase()),
+      expense.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      expense.projectName?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   if (isLoading) {
@@ -251,24 +316,38 @@ export default function ExpenseEntryForm() {
           />
         </div>
 
-        <div>
+        <div className="relative">
           <Label htmlFor="item">รายการค่าใช้จ่าย</Label>
-          <Select 
-            value={formData.item} 
-            onValueChange={(value) => handleInputChange("item", value)}
-            disabled={saving}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="เลือกรายการค่าใช้จ่าย" />
-            </SelectTrigger>
-            <SelectContent>
-              {expenseItems.map((item) => (
-                <SelectItem key={item.name} value={item.name}>
-                  {item.name}
-                </SelectItem>
+          <div className="relative">
+            <Input
+              id="item"
+              type="text"
+              value={itemSearchValue}
+              onChange={(e) => handleItemSearchChange(e.target.value)}
+              placeholder="พิมพ์เพื่อค้นหารายการค่าใช้จ่าย..."
+              required
+              disabled={saving}
+              onFocus={() => setShowItemDropdown(true)}
+              onBlur={() => setTimeout(() => setShowItemDropdown(false), 200)}
+            />
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          </div>
+          
+          {/* Autocomplete Dropdown */}
+          {showItemDropdown && filteredExpenseItems.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+              {filteredExpenseItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                  onClick={() => handleItemSelect(item)}
+                >
+                  <div className="font-medium">{item.name}</div>
+                  <div className="text-sm text-gray-500">{item.group}</div>
+                </div>
               ))}
-            </SelectContent>
-          </Select>
+            </div>
+          )}
         </div>
 
         <div>
@@ -316,6 +395,19 @@ export default function ExpenseEntryForm() {
           </Select>
         </div>
 
+        <div className="md:col-span-2">
+          <Label htmlFor="note">หมายเหตุ</Label>
+          <Textarea
+            id="note"
+            value={formData.note}
+            onChange={(e) => handleInputChange("note", e.target.value)}
+            placeholder="เพิ่มหมายเหตุหรือรายละเอียดเพิ่มเติม..."
+            className="resize-none"
+            rows={3}
+            disabled={saving}
+          />
+        </div>
+
         <div className="md:col-span-2 flex items-center space-x-2">
           <Checkbox
             id="isPaid"
@@ -348,30 +440,34 @@ export default function ExpenseEntryForm() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
             {filteredExpenses.length > 0 ? (
               filteredExpenses.map((expense) => (
-                <div
-                  key={expense.id}
-                  className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium">{expense.item}</h4>
-                      <Badge variant="outline">{expense.category}</Badge>
-                      {expense.isPaid ? (
-                        <Badge className="bg-green-100 text-green-800">ชำระแล้ว</Badge>
-                      ) : (
-                        <Badge variant="destructive">ค้างจ่าย</Badge>
-                      )}
+                <Card key={expense.id} className="border border-gray-200 hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-medium text-lg">{expense.name}</h4>
+                          <Badge variant="outline">{expense.category}</Badge>
+                          {expense.isPaid ? (
+                            <Badge className="bg-green-100 text-green-800">ชำระแล้ว</Badge>
+                          ) : (
+                            <Badge variant="destructive">ค้างจ่าย</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">{expense.projectName || "ไม่มีโปรเจกต์"}</p>
+                        <p className="text-xs text-gray-500">{expense.date}</p>
+                        {expense.note && (
+                          <p className="text-sm text-gray-600 mt-2 italic">"{expense.note}"</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-xl text-red-600">{expense.cost.toLocaleString("th-TH")} บาท</p>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600 mb-1">{expense.projectName}</p>
-                    <p className="text-xs text-gray-500">{expense.date}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-lg">{expense.amount.toLocaleString("th-TH")} บาท</p>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))
             ) : (
               <div className="text-center py-8 text-gray-500">
