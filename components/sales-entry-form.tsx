@@ -90,7 +90,13 @@ export default function SalesEntryForm() {
       // Fetch sales types
       try {
         const salesTypesResponse = await categoryService.getSalesCategories()
-        if (salesTypesResponse.success && salesTypesResponse.result) {
+        
+        if (salesTypesResponse.success && salesTypesResponse.result && salesTypesResponse.result.result && Array.isArray(salesTypesResponse.result.result)) {
+          const types = salesTypesResponse.result.result.filter((type: any) => type.isActive)
+          setSalesTypes(types)
+          setFilteredSalesTypes(types)
+        } else if (salesTypesResponse.success && salesTypesResponse.result && Array.isArray(salesTypesResponse.result)) {
+          // Handle single-level nesting
           const types = salesTypesResponse.result.filter((type: any) => type.isActive)
           setSalesTypes(types)
           setFilteredSalesTypes(types)

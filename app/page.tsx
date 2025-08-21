@@ -111,7 +111,7 @@ export default function ProjectOverviewDashboard() {
       
       // Fetch projects with financial data from dashboard service
       const dashboardResponse = await dashboardService.getDashboardData()
-      console.log('Dashboard response:', dashboardResponse)
+
       
       if (dashboardResponse.success && dashboardResponse.result?.projects) {
         // Use dashboard data which includes financial calculations
@@ -144,7 +144,7 @@ export default function ProjectOverviewDashboard() {
         // Fetch budget data to complete the financial information
         try {
           const budgetResponse = await budgetService.getAllBudgets()
-          console.log('Budget response:', budgetResponse)
+  
           
           if (budgetResponse.success && (budgetResponse as any).result?.budget) {
             const budgetData = (budgetResponse as any).result.budget
@@ -163,7 +163,7 @@ export default function ProjectOverviewDashboard() {
             })
             
             setProjects(projectsWithBudget)
-            console.log('Projects with budget:', projectsWithBudget)
+    
           } else {
             setProjects(mappedProjects)
           }
@@ -173,7 +173,7 @@ export default function ProjectOverviewDashboard() {
         }
       } else {
         // Fallback to project service if dashboard fails
-        console.log('Dashboard service failed, falling back to project service')
+
         const response = await projectService.getAllProjects({
           projectName: "",
           type: "",
@@ -267,8 +267,7 @@ export default function ProjectOverviewDashboard() {
     totalProfit: projects.reduce((sum, p) => sum + p.profit, 0),
     outstandingExpenses: 0 // จะอัพเดทเมื่อมีการเชื่อมต่อกับ expense API
   }
-  console.log('Dashboard data:', dashboardData)
-  console.log('Projects array:', projects)
+  
 
   // ข้อมูลสำหรับ Monthly Revenue Chart
   const monthlyRevenueData = projects.map(project => ({
@@ -277,7 +276,7 @@ export default function ProjectOverviewDashboard() {
     expense: project.totalCost,
     profit: project.profit
   }))
-  console.log('Monthly revenue data:', monthlyRevenueData)
+  
 
   // ข้อมูลสำหรับ Revenue Donut Chart
   const revenueDonutData = projects.map((project, index) => ({
@@ -285,7 +284,7 @@ export default function ProjectOverviewDashboard() {
     value: project.totalRevenue,
     color: COLORS[index % COLORS.length]
   }))
-  console.log('Revenue donut data:', revenueDonutData)
+  
 
   // ข้อมูลสำหรับ Expense Donut Chart
   const expenseDonutData = projects.map((project, index) => ({
@@ -293,7 +292,7 @@ export default function ProjectOverviewDashboard() {
     value: project.totalCost,
     color: COLORS[index % COLORS.length]
   }))
-  console.log('Expense donut data:', expenseDonutData)
+  
 
   // ข้อมูลสำหรับ Budget vs Actual Chart
   const budgetVsActualData = projects.filter(p => p.status === "กำลังทำ").map(project => ({
@@ -301,7 +300,7 @@ export default function ProjectOverviewDashboard() {
     budget: project.budget,
     actual: project.totalCost
   }))
-  console.log('Budget vs actual data:', budgetVsActualData)
+  
 
   // ข้อมูลสำหรับ Daily Income/Expense Chart
   const [dailyData, setDailyData] = useState<Array<{date: string, income: number, expense: number}>>([])
@@ -315,22 +314,22 @@ export default function ProjectOverviewDashboard() {
   // Fetch daily data and revenue targets
   const fetchDailyData = async () => {
     try {
-      console.log('Fetching daily data for:', selectedMonth, selectedYear)
+
       const response = await dashboardService.getDailyData(selectedMonth, selectedYear)
-      console.log('Daily data response:', response)
+      
       
       // Extract monthly target from response
       let monthlyTarget = 0
       if (response?.success && response?.result?.monthlyTarget) {
         monthlyTarget = Number(response.result.monthlyTarget) || 0
-        console.log('Monthly target from dashboard:', monthlyTarget)
+
       }
       
       // If no target from dashboard, try to fetch from revenue service
       if (monthlyTarget === 0) {
         try {
           const targetsResponse = await revenueService.getAllRevenueTargets()
-          console.log('Revenue targets response:', targetsResponse)
+  
           
           if (targetsResponse?.success && targetsResponse?.result?.targets) {
             const monthNames = [
@@ -345,7 +344,7 @@ export default function ProjectOverviewDashboard() {
               return t.month === targetKey || t.month === standardKey
             })
             monthlyTarget = (target as any)?.target || 0
-            console.log('Monthly target from revenue service:', monthlyTarget, 'for keys:', targetKey, 'or', `${selectedYear}-${selectedMonth}`)
+            
           }
         } catch (targetError) {
           console.error('Error fetching revenue targets:', targetError)
@@ -356,7 +355,7 @@ export default function ProjectOverviewDashboard() {
       let dailyDataArray: Array<{date: string, income: number, expense: number}> = []
       
       if (response?.success && response?.result) {
-        console.log('Dashboard response result:', response.result)
+
         
         // เก็บข้อมูลรายเดือนแยกต่างหาก
         const monthlyDataObj = {
@@ -367,11 +366,11 @@ export default function ProjectOverviewDashboard() {
         }
         
         setMonthlyData(monthlyDataObj)
-        console.log('Set monthly data:', monthlyDataObj)
+        
         
         // ใช้ข้อมูลรายวันที่ส่งมาจาก backend
         if (response.result.dailyData && Array.isArray(response.result.dailyData)) {
-          console.log('Using daily data from backend:', response.result.dailyData)
+
           
           dailyDataArray = response.result.dailyData.map((item: any) => ({
             date: new Date(item.date).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }),
@@ -379,9 +378,9 @@ export default function ProjectOverviewDashboard() {
             expense: Math.round(item.expense)
           }))
           
-          console.log('Processed daily data:', dailyDataArray)
+          
         } else {
-          console.log('No daily data from backend, trying to generate from projects')
+          
           // สร้างข้อมูลรายวันจาก projects (fallback)
           if (response.result.projects && Array.isArray(response.result.projects)) {
             const dailyMap = new Map<string, {income: number, expense: number}>()
@@ -430,13 +429,13 @@ export default function ProjectOverviewDashboard() {
               .sort((a, b) => new Date(a.originalDate).getTime() - new Date(b.originalDate).getTime())
               .map(({ originalDate, ...rest }) => rest) // ลบ originalDate ออก
             
-            console.log('Generated daily data from projects:', dailyDataArray)
+
           }
         }
         
         // ถ้าไม่มีข้อมูลรายวันจริง ให้สร้างข้อมูลจากข้อมูลรวม
         if (dailyDataArray.length === 0) {
-          console.log('No real daily data, generating from monthly totals')
+  
           const daysInMonth = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0).getDate()
           const totalIncome = monthlyDataObj.monthlyIncome
           const totalExpense = monthlyDataObj.monthlyExpense
@@ -457,9 +456,9 @@ export default function ProjectOverviewDashboard() {
         }
         
         setDailyData(dailyDataArray)
-        console.log('Final daily data:', dailyDataArray)
+
       } else {
-        console.log('No daily data available, generating from projects')
+        
         // สร้างข้อมูลจาก projects ที่มีอยู่
         const daysInMonth = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0).getDate()
         const totalIncome = projects.reduce((sum, p) => sum + p.totalRevenue, 0)
@@ -479,7 +478,7 @@ export default function ProjectOverviewDashboard() {
         }
         
         setDailyData(generatedDailyData)
-        console.log('Generated daily data from projects:', generatedDailyData)
+        
       }
       
       // Store monthly target for use in calculations
@@ -511,18 +510,7 @@ export default function ProjectOverviewDashboard() {
       const finalExpense = backendExpense > 0 ? backendExpense : projectExpense
       const finalNetIncome = backendProfit !== 0 ? backendProfit : projectProfit
       
-      console.log('Data sources:', {
-        monthlyData: monthlyData,
-        backendIncome,
-        backendExpense,
-        backendProfit,
-        projectIncome,
-        projectExpense,
-        projectProfit,
-        finalIncome,
-        finalExpense,
-        finalNetIncome
-      })
+
 
   // ข้อมูลสรุปโครงการ
   const activeProjects = projects.filter(p => p.status === "กำลังทำ")

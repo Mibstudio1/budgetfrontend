@@ -90,7 +90,7 @@ export default function ProjectsPage() {
         // เพิ่ม "อื่นๆ" option
         types.push({ value: "อื่นๆ", label: "อื่นๆ" })
         setProjectTypes(types)
-        console.log('Project types loaded:', types)
+
       } else {
         // Fallback to default types
         setProjectTypes([
@@ -118,7 +118,7 @@ export default function ProjectsPage() {
         type: "",
         status: ""
       })
-      console.log('Projects API result:', result)
+      
       
       // Handle different response structures
       let rawProjects = []
@@ -133,26 +133,21 @@ export default function ProjectsPage() {
         rawProjects = []
       }
 
-      console.log('Raw projects sample:', rawProjects[0])
+      
 
       // ดึงข้อมูลทางการเงินจาก dashboard API
       let dashboardData = null
       try {
         const dashResult = await dashboardService.getDashboardData()
         dashboardData = (dashResult as any)?.result?.projects || []
-        console.log('Dashboard data:', dashboardData)
+
       } catch (error) {
         console.warn('Cannot fetch dashboard data:', error)
       }
 
       // Process projects with financial calculations
       const processedProjects = rawProjects.map((project: any) => {
-        console.log('Processing project:', project.projectName || project.name, {
-          BG_Budget: project.BG_Budget,
-          expenseEntries: project.expenseEntries,
-          salesEntry: project.salesEntry,
-          rawProject: project
-        })
+
         
         // ใช้ข้อมูลจาก relations ที่ส่งมาจาก backend
         // คำนวณ budget จาก BG_Budget relations
@@ -197,7 +192,7 @@ export default function ProjectsPage() {
         }
       })
 
-      console.log('Processed projects:', processedProjects)
+
       setProjects(processedProjects)
       
     } catch (error) {
@@ -213,13 +208,13 @@ export default function ProjectsPage() {
   }
 
   const handleAddProject = () => {
-    console.log('Adding new project - resetting form')
+
     resetForm()
     setIsDialogOpen(true)
   }
 
   const handleEditProject = (project: Project) => {
-    console.log('Editing project:', project)
+
     setEditingProject(project)
     
     // Check if project type is a custom type (not in predefined list)
@@ -300,7 +295,7 @@ export default function ProjectsPage() {
 
       if (editingProject) {
         // อัพเดทโครงการ
-        console.log('Updating project:', editingProject.id, projectData)
+  
         const response = await projectService.updateProject({
           projectId: editingProject.id,
           projectName: formData.projectName,
@@ -309,7 +304,7 @@ export default function ProjectsPage() {
           projectStatus: formData.projectStatus,
           createdBy
         })
-        console.log('Update response:', response)
+
         
         if (Array.isArray(response) || 
             (response && typeof response === 'object' && (response as any).success) || 
@@ -331,9 +326,7 @@ export default function ProjectsPage() {
         }
       } else {
         // เพิ่มโครงการใหม่
-        console.log('Creating project:', projectData)
         const response = await projectService.createProject(projectData)
-        console.log('Create response:', response)
         
         if (Array.isArray(response) || 
             (response && typeof response === 'object' && (response as any).success) || 
@@ -374,7 +367,7 @@ export default function ProjectsPage() {
 
     try {
       const createdBy = user?.name || "system"
-      console.log('Canceling project:', project.id)
+      
       const response = await projectService.updateProject({
         projectId: project.id,
         projectName: project.projectName,
@@ -382,10 +375,7 @@ export default function ProjectsPage() {
         projectStatus: "ยกเลิก",
         createdBy
       })
-      console.log('Cancel response:', response)
-      console.log('Response type:', typeof response)
-      console.log('Response success:', response?.success)
-      console.log('Response message:', response?.message)
+      
       
       if (Array.isArray(response) || 
           (response && typeof response === 'object' && (response as any).success) || 
@@ -420,12 +410,9 @@ export default function ProjectsPage() {
     }
 
     try {
-      console.log('Deleting project:', id)
+
       const response = await projectService.deleteProject(id)
-      console.log('Delete response:', response)
-      console.log('Response type:', typeof response)
-      console.log('Response success:', response?.success)
-      console.log('Response message:', response?.message)
+      
       
       // ถ้า response เป็น array (backend returns []) หรือ success response
       if (Array.isArray(response) || 
@@ -570,8 +557,16 @@ export default function ProjectsPage() {
     const priorityA = getPriority(a.status || '')
     const priorityB = getPriority(b.status || '')
     
-    // If same priority, sort by project name
+    // If same priority, sort by date (newest first), then by project name
     if (priorityA === priorityB) {
+      // Sort by date if available, otherwise by project name
+      if (a.createdAt && b.createdAt) {
+        const dateA = new Date(a.createdAt).getTime()
+        const dateB = new Date(b.createdAt).getTime()
+        if (dateA !== dateB) {
+          return dateB - dateA // Newest first
+        }
+      }
       return (a.projectName || '').localeCompare(b.projectName || '', 'th')
     }
     
@@ -688,6 +683,8 @@ export default function ProjectsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
+              id="projectSearch"
+              name="projectSearch"
               placeholder="ค้นหาโครงการ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -741,6 +738,7 @@ export default function ProjectsPage() {
                   <Label htmlFor="projectName" className="text-xs sm:text-sm">ชื่อโครงการ</Label>
                   <Input
                     id="projectName"
+                    name="projectName"
                     value={formData.projectName}
                     onChange={(e) => setFormData({...formData, projectName: e.target.value})}
                     className="text-xs sm:text-sm"
@@ -750,6 +748,7 @@ export default function ProjectsPage() {
                   <Label htmlFor="description" className="text-xs sm:text-sm">รายละเอียด</Label>
                   <Input
                     id="description"
+                    name="description"
                     value={formData.description}
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
                     className="text-xs sm:text-sm"
@@ -758,7 +757,7 @@ export default function ProjectsPage() {
                 <div>
                   <Label htmlFor="type" className="text-xs sm:text-sm">ประเภท</Label>
                   <Select value={formData.projectGroup || ""} onValueChange={(value) => setFormData({...formData, projectGroup: value, customProjectGroup: value === "อื่นๆ" ? formData.customProjectGroup : ""})}>
-                    <SelectTrigger className="text-xs sm:text-sm">
+                    <SelectTrigger id="type" className="text-xs sm:text-sm">
                       <SelectValue placeholder="เลือกประเภท" />
                     </SelectTrigger>
                     <SelectContent>
@@ -775,6 +774,7 @@ export default function ProjectsPage() {
                     <Label htmlFor="customType" className="text-xs sm:text-sm">ประเภทเพิ่มเติม</Label>
                     <Input
                       id="customType"
+                      name="customType"
                       value={formData.customProjectGroup}
                       onChange={(e) => setFormData({...formData, customProjectGroup: e.target.value})}
                       placeholder="กรุณาระบุประเภทโครงการ"
@@ -785,7 +785,7 @@ export default function ProjectsPage() {
                 <div>
                   <Label htmlFor="status" className="text-xs sm:text-sm">สถานะ</Label>
                   <Select value={formData.projectStatus || ""} onValueChange={(value) => setFormData({...formData, projectStatus: value})}>
-                    <SelectTrigger className="text-xs sm:text-sm">
+                    <SelectTrigger id="status" className="text-xs sm:text-sm">
                       <SelectValue placeholder="เลือกสถานะ" />
                     </SelectTrigger>
                     <SelectContent>
@@ -801,6 +801,7 @@ export default function ProjectsPage() {
                   <Label htmlFor="startDate" className="text-xs sm:text-sm">วันที่เริ่มต้น</Label>
                   <Input
                     id="startDate"
+                    name="startDate"
                     type="date"
                     value={formData.startDate}
                     onChange={(e) => setFormData({...formData, startDate: e.target.value})}
@@ -811,6 +812,7 @@ export default function ProjectsPage() {
                   <Label htmlFor="endDate" className="text-xs sm:text-sm">วันที่สิ้นสุด</Label>
                   <Input
                     id="endDate"
+                    name="endDate"
                     type="date"
                     value={formData.endDate}
                     onChange={(e) => setFormData({...formData, endDate: e.target.value})}

@@ -103,7 +103,7 @@ export default function OutstandingExpenses() {
         (overdueFilter === "critical" && expense.daysOverdue >= 30)
       
       return matchesName && matchesProject && matchesCategory && matchesOverdue
-    })
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // เรียงตามวันที่ใหม่ไปเก่า
   }, [outstandingExpenses, searchName, searchProject, searchCategory, overdueFilter])
 
   const stats = useMemo(() => {
@@ -239,7 +239,7 @@ export default function OutstandingExpenses() {
             <div>
               <Label htmlFor="searchProject" className="text-xs sm:text-sm text-gray-700">โครงการ</Label>
               <Select value={searchProject} onValueChange={setSearchProject}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger id="searchProject" className="bg-white border-gray-300 text-xs sm:text-sm">
                   <SelectValue placeholder="ทุกโครงการ" />
                 </SelectTrigger>
                 <SelectContent>
@@ -255,7 +255,7 @@ export default function OutstandingExpenses() {
             <div>
               <Label htmlFor="searchCategory" className="text-xs sm:text-sm text-gray-700">หมวดหมู่</Label>
               <Select value={searchCategory} onValueChange={setSearchCategory}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger id="searchCategory" className="bg-white border-gray-300 text-xs sm:text-sm">
                   <SelectValue placeholder="ทุกหมวดหมู่" />
                 </SelectTrigger>
                 <SelectContent>
@@ -269,7 +269,7 @@ export default function OutstandingExpenses() {
             <div>
               <Label htmlFor="overdueFilter" className="text-xs sm:text-sm text-gray-700">สถานะการเกินกำหนด</Label>
               <Select value={overdueFilter} onValueChange={setOverdueFilter}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger id="overdueFilter" className="bg-white border-gray-300 text-xs sm:text-sm">
                   <SelectValue placeholder="ทุกสถานะ" />
                 </SelectTrigger>
                 <SelectContent>

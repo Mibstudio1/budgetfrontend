@@ -30,8 +30,7 @@ export default function UserManagementPage() {
   // Fetch users on component mount
   useEffect(() => {
     if (user?.role === 'admin') {
-      console.log('Current user:', user)
-      console.log('User role:', user?.role)
+      
       fetchUsers()
     }
   }, [user?.role])
@@ -39,17 +38,12 @@ export default function UserManagementPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      console.log('Fetching users...')
       const response = await userService.getUsers()
-      console.log('Response:', response)
       
       // Backend returns array of users directly
       if (Array.isArray(response)) {
-        console.log('Users data as array:', response)
         setUsers(response)
       } else {
-        console.log('No users found or response format incorrect')
-        console.log('Response:', response)
         setUsers([])
       }
     } catch (error) {

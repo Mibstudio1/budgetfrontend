@@ -36,23 +36,17 @@ export default function AdminPage() {
 
   // Fetch users on component mount
   useEffect(() => {
-    console.log('Current user:', user)
-    console.log('User role:', user?.role)
-    console.log('Token:', TokenManager.getToken())
+
     fetchUsers()
   }, [user])
 
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      console.log('Fetching users...')
       const response = await userService.getUsers()
-      console.log('Response:', response)
       if (response.success && response.result) {
-        console.log('Users data:', response.result)
         setUsers(response.result)
       } else {
-        console.log('No users found or response format incorrect')
         setUsers([])
       }
     } catch (error) {

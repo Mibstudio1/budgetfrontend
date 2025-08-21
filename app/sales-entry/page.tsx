@@ -119,7 +119,13 @@ export default function SalesEntry() {
       if (categoryService) {
         try {
           const salesTypesResponse = await categoryService.getSalesCategories()
-          if (salesTypesResponse.success && salesTypesResponse.result) {
+          
+          if (salesTypesResponse.success && salesTypesResponse.result && salesTypesResponse.result.result && Array.isArray(salesTypesResponse.result.result)) {
+            const types = salesTypesResponse.result.result.filter((type: any) => type.isActive)
+            setSalesTypes(types)
+            setFilteredSalesTypes(types)
+          } else if (salesTypesResponse.success && salesTypesResponse.result && Array.isArray(salesTypesResponse.result)) {
+            // Handle single-level nesting
             const types = salesTypesResponse.result.filter((type: any) => type.isActive)
             setSalesTypes(types)
             setFilteredSalesTypes(types)
@@ -318,7 +324,7 @@ export default function SalesEntry() {
           
           if (categoryResponse.success) {
             projectTypeName = formData.customType.trim()
-            console.log('Created new category:', formData.customType.trim())
+            // Created new category
           } else {
             console.error('Failed to create category:', categoryResponse)
           }
@@ -337,9 +343,7 @@ export default function SalesEntry() {
         note: formData.note || ""
       }
 
-      console.log('Sending sales data:', salesData)
       const response = await salesService.createSalesEntry(salesData)
-      console.log('Sales response:', response)
       
       if (Array.isArray(response) || response.success) {
         alert("บันทึกยอดขายเรียบร้อย!")
@@ -420,7 +424,7 @@ export default function SalesEntry() {
     const matchesType = !searchType || searchType === "all" || sale.type === searchType
     
     return matchesSearch && matchesDate && matchesAmount && matchesProject && matchesType
-  })
+  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // เรียงตามวันที่ใหม่ไปเก่า
 
   // Pagination logic
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -498,7 +502,7 @@ export default function SalesEntry() {
                 <div>
                   <Label htmlFor="projectName" className="text-sm text-gray-700">โครงการ</Label>
                   <Select value={formData.projectName} onValueChange={(value) => handleInputChange("projectName", value)}>
-                    <SelectTrigger className="bg-white border-gray-300 text-sm">
+                    <SelectTrigger id="projectName" className="bg-white border-gray-300 text-sm">
                       <SelectValue placeholder="เลือกโครงการ" />
                     </SelectTrigger>
                     <SelectContent>
@@ -613,9 +617,9 @@ export default function SalesEntry() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="projectType" className="text-sm text-gray-700">ประเภทการขาย</Label>
+                  <Label htmlFor="salesType" className="text-sm text-gray-700">ประเภทการขาย</Label>
                   <Input
-                    id="projectType"
+                    id="salesType"
                     value={formData.projectType}
                     readOnly
                     className="bg-gray-50 border-gray-300 text-sm"
@@ -627,9 +631,9 @@ export default function SalesEntry() {
               {/* Custom Type Input - แสดงเมื่อเลือก "เพิ่มประเภทใหม่" */}
               {formData.description === "เพิ่มประเภทใหม่" && (
                 <div>
-                  <Label htmlFor="customType" className="text-sm text-gray-700">ระบุประเภทการขาย</Label>
+                  <Label htmlFor="customSalesType" className="text-sm text-gray-700">ระบุประเภทการขาย</Label>
                   <Input
-                    id="customType"
+                    id="customSalesType"
                     type="text"
                     value={formData.customType}
                     onChange={(e) => handleInputChange("customType", e.target.value)}
@@ -655,7 +659,7 @@ export default function SalesEntry() {
               <div>
                 <Label htmlFor="projectType" className="text-sm text-gray-700">ประเภทโครงการ</Label>
                 <Select value={formData.projectType} onValueChange={(value) => handleInputChange("projectType", value)}>
-                  <SelectTrigger className="bg-white border-gray-300 text-sm">
+                  <SelectTrigger id="projectType" className="bg-white border-gray-300 text-sm">
                     <SelectValue placeholder="เลือกประเภทโครงการ" />
                   </SelectTrigger>
                   <SelectContent>
@@ -679,9 +683,9 @@ export default function SalesEntry() {
               {/* Custom Type Input - แสดงเมื่อเลือก "เพิ่มประเภทใหม่" */}
               {formData.projectType === "เพิ่มประเภทใหม่" && (
                 <div>
-                  <Label htmlFor="customType" className="text-sm text-gray-700">ระบุประเภทโครงการ</Label>
+                  <Label htmlFor="customProjectType" className="text-sm text-gray-700">ระบุประเภทโครงการ</Label>
                   <Input
-                    id="customType"
+                    id="customProjectType"
                     type="text"
                     value={formData.customType}
                     onChange={(e) => handleInputChange("customType", e.target.value)}
@@ -840,7 +844,7 @@ export default function SalesEntry() {
             <div>
               <Label htmlFor="searchProject" className="text-xs sm:text-sm text-gray-700">โครงการ</Label>
               <Select value={searchProject} onValueChange={setSearchProject}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger id="searchProject" className="bg-white border-gray-300 text-xs sm:text-sm">
                   <SelectValue placeholder="ทุกโครงการ" />
                 </SelectTrigger>
                 <SelectContent>
@@ -856,7 +860,7 @@ export default function SalesEntry() {
             <div>
               <Label htmlFor="searchType" className="text-xs sm:text-sm text-gray-700">ประเภท</Label>
               <Select value={searchType} onValueChange={setSearchType}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger id="searchType" className="bg-white border-gray-300 text-xs sm:text-sm">
                   <SelectValue placeholder="ทุกประเภท" />
                 </SelectTrigger>
                 <SelectContent>

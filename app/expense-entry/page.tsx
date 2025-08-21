@@ -113,7 +113,7 @@ export default function ExpenseEntry() {
 
   // Debug expense categories
   useEffect(() => {
-    console.log('Expense categories updated:', expenseCategories)
+    // Expense categories updated
   }, [expenseCategories])
 
   // Filter expense items based on search
@@ -267,24 +267,20 @@ export default function ExpenseEntry() {
           // ดึงหมวดหมู่จาก API category
           if (categoryService) {
             try {
-              console.log('Fetching expense categories from API...')
               const categoryResponse = await categoryService.getExpenseCategories()
-              console.log('Category response:', categoryResponse)
               
               if (categoryResponse.success && categoryResponse.result && categoryResponse.result.result && Array.isArray(categoryResponse.result.result)) {
                 const categoryNames = categoryResponse.result.result.map((cat: any) => cat.name)
-                console.log('Category names:', categoryNames)
                 setAvailableCategories(prev => [...new Set([...prev, ...categoryNames])].sort())
                 setExpenseCategories(categoryResponse.result.result)
-                console.log('Expense categories set:', categoryResponse.result.result)
               } else {
-                console.log('Category response structure:', categoryResponse)
+                // Category response structure not as expected
               }
             } catch (error) {
               console.error('Error fetching categories from API:', error)
             }
           } else {
-            console.log('Category service not available')
+            // Category service not available
           }
         }
       } catch (error) {
@@ -466,9 +462,7 @@ export default function ExpenseEntry() {
         note: formData.note || ""
       }
 
-      console.log('Sending expense data:', expenseData)
       const response = await expenseService.createExpense(expenseData)
-      console.log('Expense response:', response)
       
       if (Array.isArray(response) || response.success) {
         // Reset form
@@ -519,7 +513,7 @@ export default function ExpenseEntry() {
     }
 
     try {
-      console.log('Updating expense status:', editingExpense.id, editFormData.status)
+      // Updating expense status
       
       // Update expense status in backend
       const response = await expenseService.updateExpenseStatus(editingExpense.id, editFormData.status)
@@ -586,7 +580,7 @@ export default function ExpenseEntry() {
       (searchStatus === "unpaid" && expense.status === false)
     
     return matchesName && matchesAmount && matchesDate && matchesProject && matchesCategory && matchesStatus
-  })
+  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // เรียงตามวันที่ใหม่ไปเก่า
 
   // Pagination logic
   const startIndex = (currentPage - 1) * itemsPerPage
@@ -837,7 +831,7 @@ export default function ExpenseEntry() {
                 <div>
                   <Label htmlFor="projectName" className="text-sm text-gray-700">โครงการ</Label>
                   <Select value={formData.projectName} onValueChange={(value) => handleInputChange("projectName", value)}>
-                    <SelectTrigger className="bg-white border-gray-300 text-sm">
+                    <SelectTrigger id="projectName" className="bg-white border-gray-300 text-sm">
                       <SelectValue placeholder="เลือกโครงการ" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1022,7 +1016,7 @@ export default function ExpenseEntry() {
             <div>
               <Label htmlFor="searchProject" className="text-xs sm:text-sm text-gray-700">โครงการ</Label>
               <Select value={searchProject} onValueChange={setSearchProject}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger id="searchProject" className="bg-white border-gray-300 text-xs sm:text-sm">
                   <SelectValue placeholder="ทุกโครงการ" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1038,7 +1032,7 @@ export default function ExpenseEntry() {
             <div>
               <Label htmlFor="searchCategory" className="text-xs sm:text-sm text-gray-700">หมวดหมู่</Label>
               <Select value={searchCategory} onValueChange={setSearchCategory}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger id="searchCategory" className="bg-white border-gray-300 text-xs sm:text-sm">
                   <SelectValue placeholder="ทุกหมวดหมู่" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1159,14 +1153,14 @@ export default function ExpenseEntry() {
                   <p className="text-sm text-gray-900 mt-1">{editingExpense.date}</p>
                 </div>
                 <div>
-                  <Label htmlFor="status" className="text-sm font-medium text-gray-700">สถานะการชำระ</Label>
+                  <Label htmlFor="editStatus" className="text-sm font-medium text-gray-700">สถานะการชำระ</Label>
                   <div className="flex items-center space-x-2 mt-2">
                     <Checkbox
-                      id="status"
+                      id="editStatus"
                       checked={editFormData.status}
                       onCheckedChange={(checked) => setEditFormData({ status: checked as boolean })}
                     />
-                    <Label htmlFor="status" className="text-sm text-gray-700">ชำระแล้ว</Label>
+                    <Label htmlFor="editStatus" className="text-sm text-gray-700">ชำระแล้ว</Label>
                   </div>
                 </div>
                 <div className="flex justify-end space-x-2 pt-4">
