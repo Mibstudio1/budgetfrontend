@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Edit, Trash2, ChevronDown } from "lucide-react"
+import { Search, Plus, Edit, Trash2, ChevronDown, Download } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { expenseService, CreateExpenseEntryRequest } from "@/lib/services/expenseService"
@@ -16,6 +16,8 @@ import { optionsService } from "@/lib/services/optionsService"
 import { projectService } from "@/lib/services/projectService"
 import { useAuth } from "@/hooks/useAuth"
 import { PaginationControls, PaginationInfo } from "@/components/ui/pagination-controls"
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
 
 interface LocalExpenseRecord {
   id: string
@@ -58,7 +60,8 @@ export default function ExpenseEntry() {
   const [saving, setSaving] = useState(false)
   const [searchName, setSearchName] = useState("")
   const [searchAmount, setSearchAmount] = useState("")
-  const [searchDate, setSearchDate] = useState("")
+  const [searchStartDate, setSearchStartDate] = useState("")
+  const [searchEndDate, setSearchEndDate] = useState("")
   const [searchProject, setSearchProject] = useState("all")
   const [searchCategory, setSearchCategory] = useState("all")
   const [searchStatus, setSearchStatus] = useState("all")
@@ -558,6 +561,265 @@ export default function ExpenseEntry() {
     }
   };
 
+  // ฟังก์ชันสำหรับส่งออกข้อมูลเป็น Excel
+  const exportToExcel = () => {
+    if (filteredExpenses.length === 0) {
+      alert("ไม่มีข้อมูลที่จะส่งออก");
+      return;
+    }
+
+    try {
+      // เตรียมข้อมูลสำหรับ Excel
+      const excelData = filteredExpenses.map((expense, index) => ({
+        'ลำดับ': index + 1,
+        'วันที่': expense.date,
+        'รายการค่าใช้จ่าย': expense.name,
+        'จำนวนเงิน (บาท)': expense.amount,
+        'โครงการ': expense.projectName || 'ไม่มีโปรเจกต์',
+        'หมวดหมู่': expense.category,
+        'สถานะ': expense.status ? 'ชำระแล้ว' : 'ค้างจ่าย',
+        'หมายเหตุ': expense.note || ''
+      }));
+
+      // สร้าง worksheet
+      const ws = XLSX.utils.json_to_sheet(excelData);
+
+      // กำหนดความกว้างของคอลัมน์
+      const columnWidths = [
+        { wch: 8 },   // ลำดับ
+        { wch: 12 },  // วันที่
+        { wch: 35 },  // รายการค่าใช้จ่าย
+        { wch: 18 },  // จำนวนเงิน
+        { wch: 30 },  // โครงการ
+        { wch: 18 },  // หมวดหมู่
+        { wch: 15 },  // สถานะ
+        { wch: 40 }   // หมายเหตุ
+      ];
+      ws['!cols'] = columnWidths;
+
+      // จัดรูปแบบหัวตาราง
+      const headerStyle = {
+        font: { bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "4472C4" } },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: "000000" } },
+          bottom: { style: "thin", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } }
+        }
+      };
+
+      // จัดรูปแบบข้อมูล
+      const dataStyle = {
+        font: { color: { rgb: "000000" } },
+        alignment: { vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: "CCCCCC" } },
+          bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+          left: { style: "thin", color: { rgb: "CCCCCC" } },
+          right: { style: "thin", color: { rgb: "CCCCCC" } }
+        }
+      };
+
+      // จัดรูปแบบเฉพาะคอลัมน์
+      const numberStyle = {
+        ...dataStyle,
+        alignment: { horizontal: "right", vertical: "center" },
+        numFmt: "#,##0.00"
+      };
+
+      const statusStyle = {
+        ...dataStyle,
+        alignment: { horizontal: "center", vertical: "center" },
+        fill: { fgColor: { rgb: "E8F5E8" } }
+      };
+
+      // ใช้รูปแบบกับเซลล์
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+      
+      for (let col = range.s.c; col <= range.e.c; col++) {
+        const headerCell = XLSX.utils.encode_cell({ r: 0, c: col });
+        if (ws[headerCell]) {
+          ws[headerCell].s = headerStyle;
+        }
+        
+        // จัดรูปแบบข้อมูลในแต่ละคอลัมน์
+        for (let row = range.s.r + 1; row <= range.e.r; row++) {
+          const cell = XLSX.utils.encode_cell({ r: row, c: col });
+          if (ws[cell]) {
+            let cellStyle;
+            
+            if (col === 0) { // ลำดับ
+              cellStyle = { ...dataStyle, alignment: { horizontal: "center", vertical: "center" } };
+            } else if (col === 3) { // จำนวนเงิน
+              cellStyle = numberStyle;
+            } else if (col === 6) { // สถานะ
+              cellStyle = statusStyle;
+            } else {
+              cellStyle = dataStyle;
+            }
+            
+            // เพิ่มสีพื้นหลังสลับแถว
+            if (row % 2 === 0) {
+              cellStyle = { ...cellStyle, fill: { fgColor: { rgb: "F8F9FA" } } };
+            }
+            
+            ws[cell].s = cellStyle;
+          }
+        }
+      }
+
+      // กำหนดความสูงของแถวหัวตาราง
+      ws['!rows'] = [{ hpt: 25 }];
+
+      // สร้าง workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'รายการค่าใช้จ่าย');
+
+      // ตรวจสอบว่ามีการกรองหรือไม่
+      const hasFilters = searchName || searchAmount || searchStartDate || searchEndDate || searchProject !== "all" || searchCategory !== "all" || searchStatus !== "all";
+
+      // เพิ่มยอดสรุปตามตัวกรองที่เลือก
+      const summaryData = [
+        { 'รายการ': 'จำนวนรายการทั้งหมด', 'ค่า': filteredExpenses.length },
+        { 'รายการ': 'ยอดรวมทั้งหมด', 'ค่า': totalExpenses },
+        { 'รายการ': 'ยอดที่ชำระแล้ว', 'ค่า': paidExpenses },
+        { 'รายการ': 'ยอดที่ค้างชำระ', 'ค่า': unpaidExpenses },
+        { 'รายการ': 'อัตราการชำระ (%)', 'ค่า': paidPercentage.toFixed(2) + '%' }
+      ];
+
+      // เพิ่มข้อมูลตัวกรองที่ใช้
+      if (hasFilters) {
+        const filterInfo = [];
+        if (searchName) filterInfo.push(`ชื่อ: ${searchName}`);
+        if (searchAmount) filterInfo.push(`จำนวนเงิน: ${searchAmount}`);
+        if (searchStartDate) filterInfo.push(`ตั้งแต่: ${searchStartDate}`);
+        if (searchEndDate) filterInfo.push(`ถึง: ${searchEndDate}`);
+        if (searchProject !== "all") filterInfo.push(`โครงการ: ${searchProject}`);
+        if (searchCategory !== "all") filterInfo.push(`หมวดหมู่: ${searchCategory}`);
+        if (searchStatus !== "all") filterInfo.push(`สถานะ: ${searchStatus === "paid" ? "ชำระแล้ว" : "ค้างจ่าย"}`);
+        
+        if (filterInfo.length > 0) {
+          summaryData.unshift({ 'รายการ': 'ตัวกรองที่ใช้', 'ค่า': filterInfo.join(', ') });
+        }
+      }
+
+      const summaryWs = XLSX.utils.json_to_sheet(summaryData);
+      
+      // จัดรูปแบบหัวตารางสรุป
+      const summaryHeaderStyle = {
+        font: { bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "4472C4" } },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: "000000" } },
+          bottom: { style: "thin", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } }
+        }
+      };
+
+      // จัดรูปแบบข้อมูลสรุป
+      const summaryDataStyle = {
+        font: { color: { rgb: "000000" } },
+        alignment: { vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: "CCCCCC" } },
+          bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+          left: { style: "thin", color: { rgb: "CCCCCC" } },
+          right: { style: "thin", color: { rgb: "CCCCCC" } }
+        }
+      };
+
+      // ใช้รูปแบบกับเซลล์สรุป
+      const summaryRange = XLSX.utils.decode_range(summaryWs['!ref'] || 'A1');
+      
+      for (let col = summaryRange.s.c; col <= summaryRange.e.c; col++) {
+        const headerCell = XLSX.utils.encode_cell({ r: 0, c: col });
+        if (summaryWs[headerCell]) {
+          summaryWs[headerCell].s = summaryHeaderStyle;
+        }
+        
+        for (let row = summaryRange.s.r + 1; row <= summaryRange.e.r; row++) {
+          const cell = XLSX.utils.encode_cell({ r: row, c: col });
+          if (summaryWs[cell]) {
+            summaryWs[cell].s = summaryDataStyle;
+          }
+        }
+      }
+
+      // กำหนดความกว้างของคอลัมน์สรุป
+      summaryWs['!cols'] = [
+        { wch: 25 },   // รายการ
+        { wch: 20 }    // ค่า
+      ];
+
+      XLSX.utils.book_append_sheet(wb, summaryWs, 'ยอดสรุป');
+
+      // สร้างชื่อไฟล์ตามตัวกรอง
+      let fileName = '';
+      const currentDate = new Date().toISOString().split('T')[0];
+      
+      if (hasFilters) {
+        // มีการกรอง - หาช่วงวันที่
+        const dates = filteredExpenses.map(e => new Date(e.date)).sort((a, b) => a.getTime() - b.getTime());
+        const startDate = dates[0];
+        const endDate = dates[dates.length - 1];
+        
+        if (startDate && endDate) {
+          const startDateStr = startDate.toISOString().split('T')[0];
+          const endDateStr = endDate.toISOString().split('T')[0];
+          
+          if (startDateStr === endDateStr) {
+            fileName = `รายการค่าใช้จ่าย_${startDateStr}.xlsx`;
+          } else {
+            fileName = `รายการค่าใช้จ่าย_${startDateStr}_ถึง_${endDateStr}.xlsx`;
+          }
+        } else {
+          fileName = `รายการค่าใช้จ่าย_กรองแล้ว_${currentDate}.xlsx`;
+        }
+      } else {
+        // ไม่มีการกรอง - ใช้ข้อมูลทั้งหมด
+        fileName = `รายการค่าใช้จ่ายทั้งหมด_ณ_${currentDate}.xlsx`;
+      }
+
+      // ส่งออกไฟล์
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(data, fileName);
+
+      // สร้างข้อความแจ้งเตือนตามประเภทการส่งออก
+      let message = `ส่งออกข้อมูล ${filteredExpenses.length} รายการเรียบร้อยแล้ว`;
+      
+      if (hasFilters) {
+        const dates = filteredExpenses.map(e => new Date(e.date)).sort((a, b) => a.getTime() - b.getTime());
+        const startDate = dates[0];
+        const endDate = dates[dates.length - 1];
+        
+        if (startDate && endDate) {
+          const startDateStr = startDate.toISOString().split('T')[0];
+          const endDateStr = endDate.toISOString().split('T')[0];
+          
+          if (startDateStr === endDateStr) {
+            message = `ส่งออกข้อมูล ${filteredExpenses.length} รายการ วันที่ ${startDateStr} เรียบร้อยแล้ว`;
+          } else {
+            message = `ส่งออกข้อมูล ${filteredExpenses.length} รายการ ตั้งแต่ ${startDateStr} ถึง ${endDateStr} เรียบร้อยแล้ว`;
+          }
+        } else {
+          message = `ส่งออกข้อมูล ${filteredExpenses.length} รายการ (กรองแล้ว) เรียบร้อยแล้ว`;
+        }
+      } else {
+        message = `ส่งออกข้อมูลทั้งหมด ${filteredExpenses.length} รายการ ณ วันที่ ${currentDate} เรียบร้อยแล้ว`;
+      }
+      
+      alert(message);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert("เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel");
+    }
+  };
+
   const filteredExpenses = expenses.filter(expense => {
     // Name filter
     const matchesName = !searchName || expense.name.toLowerCase().includes(searchName.toLowerCase())
@@ -565,8 +827,15 @@ export default function ExpenseEntry() {
     // Amount filter
     const matchesAmount = !searchAmount || expense.amount.toString().includes(searchAmount)
     
-    // Date filter
-    const matchesDate = !searchDate || expense.date === searchDate
+    // Date filter - รองรับช่วงวันที่
+    let matchesDate = true
+    if (searchStartDate && searchEndDate) {
+      matchesDate = expense.date >= searchStartDate && expense.date <= searchEndDate
+    } else if (searchStartDate) {
+      matchesDate = expense.date === searchStartDate
+    } else if (searchEndDate) {
+      matchesDate = expense.date <= searchEndDate
+    }
     
     // Project filter
     const matchesProject = !searchProject || searchProject === "all" || expense.projectName === searchProject
@@ -594,7 +863,7 @@ export default function ExpenseEntry() {
   // Reset to first page when search terms change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchName, searchAmount, searchDate, searchProject, searchCategory])
+  }, [searchName, searchAmount, searchStartDate, searchEndDate, searchProject, searchCategory])
 
   // คำนวณสถิติค่าใช้จ่าย (ใช้ข้อมูลที่กรองแล้ว)
   const totalExpenses = filteredExpenses.reduce((sum, expense) => {
@@ -964,23 +1233,36 @@ export default function ExpenseEntry() {
             <div className="text-sm text-gray-600">
               แสดง {filteredExpenses.length} จาก {expenses.length} รายการ
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSearchName("")
-                setSearchAmount("")
-                setSearchDate("")
-                setSearchProject("all")
-                setSearchCategory("all")
-                setSearchStatus("all")
-              }}
-              className="text-xs"
-            >
-              ล้างตัวกรอง
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportToExcel}
+                className="text-xs bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                disabled={filteredExpenses.length === 0}
+              >
+                <Download className="w-3 h-3 mr-1" />
+                ส่งออก Excel
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchName("")
+                  setSearchAmount("")
+                  setSearchStartDate("")
+                  setSearchEndDate("")
+                  setSearchProject("all")
+                  setSearchCategory("all")
+                  setSearchStatus("all")
+                }}
+                className="text-xs"
+              >
+                ล้างตัวกรอง
+              </Button>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="searchName" className="text-xs sm:text-sm text-gray-700">ชื่อรายการ</Label>
               <Input
@@ -1000,16 +1282,6 @@ export default function ExpenseEntry() {
                 placeholder="ค้นหาจำนวนเงิน..."
                 value={searchAmount}
                 onChange={(e) => setSearchAmount(e.target.value)}
-                className="bg-white border-gray-300 text-xs sm:text-sm"
-              />
-            </div>
-            <div>
-              <Label htmlFor="searchDate" className="text-xs sm:text-sm text-gray-700">วันที่</Label>
-              <Input
-                id="searchDate"
-                type="date"
-                value={searchDate}
-                onChange={(e) => setSearchDate(e.target.value)}
                 className="bg-white border-gray-300 text-xs sm:text-sm"
               />
             </div>
@@ -1044,6 +1316,28 @@ export default function ExpenseEntry() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label htmlFor="searchStartDate" className="text-xs sm:text-sm text-gray-700">ตั้งแต่</Label>
+              <Input
+                id="searchStartDate"
+                type="date"
+                value={searchStartDate}
+                onChange={(e) => setSearchStartDate(e.target.value)}
+                className="bg-white border-gray-300 text-xs sm:text-sm"
+                placeholder="เลือกวันที่เริ่มต้น"
+              />
+            </div>
+            <div>
+              <Label htmlFor="searchEndDate" className="text-xs sm:text-sm text-gray-700">ถึง</Label>
+              <Input
+                id="searchEndDate"
+                type="date"
+                value={searchEndDate}
+                onChange={(e) => setSearchEndDate(e.target.value)}
+                className="bg-white border-gray-300 text-xs sm:text-sm"
+                placeholder="เลือกวันที่สิ้นสุด"
+              />
             </div>
           </div>
         </CardContent>

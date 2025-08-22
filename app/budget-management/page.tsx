@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 import { Plus, Edit, Trash2, DollarSign, BarChart3 } from "lucide-react"
 import { projectService } from "@/lib/services/projectService"
 import { budgetService, Budget } from "@/lib/services/budgetService"
@@ -28,7 +28,7 @@ interface Project {
 export default function BudgetManagement() {
   const { toast } = useToast()
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState("budgets")
+
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -341,16 +341,7 @@ export default function BudgetManagement() {
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-1">
-          <TabsTrigger value="budgets" className="flex items-center space-x-2 text-xs sm:text-sm">
-            <DollarSign className="w-4 h-4" />
-            <span>งบประมาณ</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* งบประมาณ (สามารถจัดการได้) */}
-        <TabsContent value="budgets" className="space-y-4 sm:space-y-6">
+      <div className="space-y-4 sm:space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <div>
               <h3 className="text-base sm:text-lg font-semibold text-gray-900">จัดการงบประมาณ</h3>
@@ -590,8 +581,7 @@ export default function BudgetManagement() {
               </p>
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   )
 }
