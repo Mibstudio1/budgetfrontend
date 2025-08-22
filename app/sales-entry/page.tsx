@@ -107,8 +107,8 @@ export default function SalesEntry() {
       setFilteredSalesTypes(salesTypes)
     } else {
       const filtered = salesTypes.filter(type => 
-        type.name.toLowerCase().includes(typeSearchValue.toLowerCase()) ||
-        type.category.toLowerCase().includes(typeSearchValue.toLowerCase())
+        type.name?.toLowerCase().includes(typeSearchValue.toLowerCase()) ||
+        type.category?.toLowerCase().includes(typeSearchValue.toLowerCase())
       )
       setFilteredSalesTypes(filtered)
     }
@@ -343,7 +343,7 @@ export default function SalesEntry() {
         totalPrice: Number(formData.totalPrice) || (Number(formData.quantity) * Number(formData.sellingPrice)) || 0,
         type: projectTypeName || selectedProject.type || 'Other',
         createdBy: user?.name || 'system',
-        note: formData.note || ""
+        note: formData.note || "ไม่มีหมายเหตุ"
       }
 
       const response = await salesService.createSalesEntry(salesData)

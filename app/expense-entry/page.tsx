@@ -462,7 +462,7 @@ export default function ExpenseEntry() {
         isPaid: formData.isPaid,
         createdBy: user?.name || 'system',
         category: categoryName || 'อื่นๆ',
-        note: formData.note || ""
+        note: formData.note || "ไม่มีหมายเหตุ"
       }
 
       const response = await expenseService.createExpense(expenseData)
