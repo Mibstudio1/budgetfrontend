@@ -118,11 +118,21 @@ export default function MonthlyDashboard() {
       
       // Fetch revenue targets first
       const targetsResponse = await revenueService.getAllRevenueTargets()
-      
+      console.log('Targets response:', targetsResponse)
+      console.log('All targets from backend:', targetsResponse?.result?.targets)
       
       // Debug: Log each target's structure
       if (targetsResponse?.result?.targets) {
-
+        targetsResponse.result.targets.forEach((target: any, index: number) => {
+          console.log(`Target ${index}:`, {
+            id: target.id,
+            month: target.month,
+            target: target.target,
+            createdAt: target.createdAt,
+            updatedAt: target.updatedAt,
+            createdBy: target.createdBy
+          })
+        })
       }
       
       // Get target for selected month/year
@@ -136,22 +146,29 @@ export default function MonthlyDashboard() {
         const targetKey = `${selectedMonthName} ${selectedYear}`
         const standardKey = `${selectedYear}-${selectedMonth}` // 2025-08 format
         
-
+        console.log('Looking for target with keys:', { targetKey, standardKey })
+        console.log('Selected month name:', selectedMonthName)
+        console.log('Selected year:', selectedYear)
         
         // Find target by EXACT match only - no fallback to other months
         const target = targetsResponse.result.targets.find((t: any) => {
+          console.log('Checking target:', t.month, 'against:', targetKey, 'or', standardKey)
           return t.month === targetKey || t.month === standardKey
         })
         
         if (target) {
           monthlyTarget = Number(target.target) || 0
+          console.log('Found target for specific month:', target.month, 'value:', monthlyTarget)
         } else {
+          console.log('No target found for specific month:', targetKey, 'or', standardKey)
           monthlyTarget = 0 // No target for this specific month
         }
       }
       
       // Fetch monthly dashboard data from backend
       const monthlyResponse = await dashboardService.getMonthlyDashboard(selectedMonth, selectedYear)
+      console.log('Monthly dashboard response:', monthlyResponse)
+      console.log('Selected month/year:', selectedMonth, selectedYear)
       
       // Fetch additional project data for better information
       const projectResponse = await projectService.getAllProjects({
@@ -159,6 +176,7 @@ export default function MonthlyDashboard() {
         type: "",
         status: ""
       })
+      console.log('Project response:', projectResponse)
       
       if (monthlyResponse.success && monthlyResponse.result) {
         const monthlyResult = monthlyResponse.result

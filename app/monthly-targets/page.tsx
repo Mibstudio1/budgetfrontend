@@ -60,14 +60,21 @@ export default function MonthlyTargets() {
   // Load data from backend
   const loadBackendData = async () => {
     try {
+      console.log('Attempting to load backend data...')
       const response = await revenueService.getAllRevenueTargets()
+      console.log('Full response:', response)
+      console.log('Response type:', typeof response)
+      console.log('Response keys:', Object.keys(response || {}))
       
       if (response?.success && response?.result?.targets && Array.isArray(response.result.targets)) {
         const targets = response.result.targets
+        console.log('Backend targets loaded:', targets)
         setBackendTargets(targets)
         return targets
       }
-      return []
+      console.log('No valid targets found in response')
+      console.log('Response success:', response?.success)
+      console.log('Response result:', response?.result)
       return []
     } catch (error: any) {
       console.error('Error loading backend data:', error)
@@ -87,9 +94,11 @@ export default function MonthlyTargets() {
       
       // Load backend data first
       const backendData = await loadBackendData()
+      console.log('Backend data loaded:', backendData)
       
       // Generate base monthly targets
       const generatedTargets = generateMonthlyTargets(year)
+      console.log('Generated targets:', generatedTargets)
       
       // Merge backend data with generated months for selected year
       const mergedTargets = generatedTargets.map(generated => {
@@ -99,7 +108,7 @@ export default function MonthlyTargets() {
           return b.month === generated.month;
         });
         
-
+        console.log(`Checking month ${generated.month}:`, backendTarget);
         
         if (backendTarget) {
           return { 
@@ -114,7 +123,7 @@ export default function MonthlyTargets() {
         return generated
       })
       
-
+      console.log('Final merged targets:', mergedTargets)
       setMonthlyTargets(mergedTargets)
       
       // Save to localStorage as backup

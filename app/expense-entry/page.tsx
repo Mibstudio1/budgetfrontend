@@ -116,7 +116,7 @@ export default function ExpenseEntry() {
 
   // Debug expense categories
   useEffect(() => {
-    // Expense categories updated
+    console.log('Expense categories updated:', expenseCategories)
   }, [expenseCategories])
 
   // Filter expense items based on search
@@ -270,20 +270,24 @@ export default function ExpenseEntry() {
           // ดึงหมวดหมู่จาก API category
           if (categoryService) {
             try {
+              console.log('Fetching expense categories from API...')
               const categoryResponse = await categoryService.getExpenseCategories()
+              console.log('Category response:', categoryResponse)
               
               if (categoryResponse.success && categoryResponse.result && categoryResponse.result.result && Array.isArray(categoryResponse.result.result)) {
                 const categoryNames = categoryResponse.result.result.map((cat: any) => cat.name)
+                console.log('Category names:', categoryNames)
                 setAvailableCategories(prev => [...new Set([...prev, ...categoryNames])].sort())
                 setExpenseCategories(categoryResponse.result.result)
+                console.log('Expense categories set:', categoryResponse.result.result)
               } else {
-                // Category response structure not as expected
+                console.log('Category response structure:', categoryResponse)
               }
             } catch (error) {
               console.error('Error fetching categories from API:', error)
             }
           } else {
-            // Category service not available
+            console.log('Category service not available')
           }
         }
       } catch (error) {
@@ -294,6 +298,339 @@ export default function ExpenseEntry() {
       console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // ฟังก์ชันสำหรับ export Excel
+  const exportToExcel = () => {
+    try {
+      // ข้อมูลที่กรองแล้ว
+      const filteredData = expenses.filter(expense => {
+        const matchesName = !searchName || expense.name.toLowerCase().includes(searchName.toLowerCase())
+        const matchesAmount = !searchAmount || expense.amount.toString().includes(searchAmount)
+        const matchesDate = (!searchStartDate || expense.date >= searchStartDate) && 
+                           (!searchEndDate || expense.date <= searchEndDate)
+        const matchesProject = searchProject === "all" || expense.projectName === searchProject
+        const matchesCategory = searchCategory === "all" || expense.category === searchCategory
+        const matchesStatus = searchStatus === "all" || 
+                             (searchStatus === "paid" && expense.status) || 
+                             (searchStatus === "unpaid" && !expense.status)
+        
+        return matchesName && matchesAmount && matchesDate && matchesProject && matchesCategory && matchesStatus
+      }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // เรียงตามวันที่ใหม่ไปเก่า
+
+      if (filteredData.length === 0) {
+        alert('ไม่มีข้อมูลสำหรับ export')
+        return
+      }
+
+      // สร้างชื่อไฟล์
+      let fileName = 'รายจ่าย'
+      if (searchStartDate && searchEndDate) {
+        if (searchStartDate === searchEndDate) {
+          fileName += `_${searchStartDate}`
+        } else {
+          fileName += `_${searchStartDate}_ถึง_${searchEndDate}`
+        }
+      } else if (searchStartDate) {
+        fileName += `_ตั้งแต่_${searchStartDate}`
+      } else if (searchEndDate) {
+        fileName += `_จนถึง_${searchEndDate}`
+      } else {
+        fileName += '_ทั้งหมด_' + new Date().toISOString().split('T')[0]
+      }
+
+      // สร้างข้อมูลสำหรับ Sheet รายการ
+      const expenseData = filteredData.map((expense, index) => ({
+        'ลำดับ': index + 1,
+        'วันที่': expense.date,
+        'รายการ': expense.name,
+        'จำนวนเงิน (บาท)': Number(expense.amount).toLocaleString('th-TH'),
+        'โครงการ': expense.projectName || 'ไม่มีโปรเจกต์',
+        'หมวดหมู่': expense.category,
+        'สถานะ': expense.status ? 'ชำระแล้ว' : 'ค้างจ่าย',
+        'หมายเหตุ': expense.note || ''
+      }))
+
+      // สร้างข้อมูลสำหรับ Sheet สรุป
+      const summaryData = []
+      
+      // เพิ่มข้อมูลสรุปทั่วไป
+      summaryData.push({
+        'สรุปค่าใช้จ่าย': `รายงานค่าใช้จ่าย ${fileName.replace('รายจ่าย_', '')}`,
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      summaryData.push({
+        'สรุปค่าใช้จ่าย': `วันที่สร้างรายงาน: ${new Date().toLocaleDateString('th-TH')}`,
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      summaryData.push({
+        'สรุปค่าใช้จ่าย': `จำนวนรายการทั้งหมด: ${filteredData.length} รายการ`,
+        'จำนวนเงิน (บาท)': `รวม: ${Number(filteredData.reduce((sum, e) => sum + (Number(e.amount) || 0), 0)).toLocaleString('th-TH')} บาท`,
+        'จำนวนรายการ': ''
+      })
+      
+      summaryData.push({
+        'สรุปค่าใช้จ่าย': '',
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      // สรุปตามหมวดหมู่
+      summaryData.push({
+        'สรุปค่าใช้จ่าย': '=== สรุปตามหมวดหมู่ ===',
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      const categorySummary = filteredData.reduce((acc, expense) => {
+        const amount = Number(expense.amount) || 0
+        acc[expense.category] = (acc[expense.category] || 0) + amount
+        return acc
+      }, {} as Record<string, number>)
+      
+      Object.entries(categorySummary)
+        .sort(([,a], [,b]) => b - a) // เรียงตามจำนวนเงินมากไปน้อย
+        .forEach(([category, amount]) => {
+          summaryData.push({
+            'สรุปค่าใช้จ่าย': category,
+            'จำนวนเงิน (บาท)': Number(amount).toLocaleString('th-TH'),
+            'จำนวนรายการ': filteredData.filter(e => e.category === category).length
+          })
+        })
+
+      summaryData.push({
+        'สรุปค่าใช้จ่าย': '',
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+
+      // สรุปตามโครงการ
+      summaryData.push({
+        'สรุปค่าใช้จ่าย': '=== สรุปตามโครงการ ===',
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      const projectSummary = filteredData.reduce((acc, expense) => {
+        const projectName = expense.projectName || 'ไม่มีโปรเจกต์'
+        const amount = Number(expense.amount) || 0
+        acc[projectName] = (acc[projectName] || 0) + amount
+        return acc
+      }, {} as Record<string, number>)
+      
+      Object.entries(projectSummary)
+        .sort(([,a], [,b]) => b - a) // เรียงตามจำนวนเงินมากไปน้อย
+        .forEach(([project, amount]) => {
+          summaryData.push({
+            'สรุปค่าใช้จ่าย': project,
+            'จำนวนเงิน (บาท)': Number(amount).toLocaleString('th-TH'),
+            'จำนวนรายการ': filteredData.filter(e => (e.projectName || 'ไม่มีโปรเจกต์') === project).length
+          })
+        })
+
+      summaryData.push({
+        'สรุปค่าใช้จ่าย': '',
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+
+      // สรุปสถานะการชำระ
+      summaryData.push({
+        'สรุปค่าใช้จ่าย': '=== สรุปสถานะการชำระ ===',
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      const paidAmount = filteredData.filter(e => e.status).reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+      const unpaidAmount = filteredData.filter(e => !e.status).reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+      
+      summaryData.push({
+        'สรุปค่าใช้จ่าย': 'ชำระแล้ว',
+        'จำนวนเงิน (บาท)': Number(paidAmount).toLocaleString('th-TH'),
+        'จำนวนรายการ': filteredData.filter(e => e.status).length
+      })
+      
+      summaryData.push({
+        'สรุปค่าใช้จ่าย': 'ค้างจ่าย',
+        'จำนวนเงิน (บาท)': Number(unpaidAmount).toLocaleString('th-TH'),
+        'จำนวนรายการ': filteredData.filter(e => !e.status).length
+      })
+
+      // สร้าง workbook
+      const workbook = XLSX.utils.book_new()
+      
+      // Sheet รายการ
+      const expenseWorksheet = XLSX.utils.json_to_sheet(expenseData)
+      XLSX.utils.book_append_sheet(workbook, expenseWorksheet, 'รายการค่าใช้จ่าย')
+      
+      // Sheet สรุป
+      const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData)
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'สรุปค่าใช้จ่าย')
+
+      // ตั้งค่าความกว้างคอลัมน์
+      const expenseCols = [
+        { wch: 6 },   // ลำดับ
+        { wch: 15 },  // วันที่
+        { wch: 35 },  // รายการ
+        { wch: 18 },  // จำนวนเงิน
+        { wch: 30 },  // โครงการ
+        { wch: 20 },  // หมวดหมู่
+        { wch: 12 },  // สถานะ
+        { wch: 40 }   // หมายเหตุ
+      ]
+      expenseWorksheet['!cols'] = expenseCols
+
+      const summaryCols = [
+        { wch: 25 },  // หมวดหมู่/โครงการ/สถานะ
+        { wch: 18 },  // จำนวนเงิน
+        { wch: 15 }   // จำนวนรายการ
+      ]
+      summaryWorksheet['!cols'] = summaryCols
+
+      // จัดรูปแบบ Header ของ Sheet รายการ
+      const expenseRange = XLSX.utils.decode_range(expenseWorksheet['!ref'] || 'A1')
+      for (let col = expenseRange.s.c; col <= expenseRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
+        if (expenseWorksheet[cellAddress]) {
+          expenseWorksheet[cellAddress].s = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "4472C4" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "thin" },
+              bottom: { style: "thin" },
+              left: { style: "thin" },
+              right: { style: "thin" }
+            }
+          }
+        }
+      }
+
+      // จัดรูปแบบ Header ของ Sheet สรุป
+      const summaryRange = XLSX.utils.decode_range(summaryWorksheet['!ref'] || 'A1')
+      for (let col = summaryRange.s.c; col <= summaryRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
+        if (summaryWorksheet[cellAddress]) {
+          summaryWorksheet[cellAddress].s = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "70AD47" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "thin" },
+              bottom: { style: "thin" },
+              left: { style: "thin" },
+              right: { style: "thin" }
+            }
+          }
+        }
+      }
+
+      // จัดรูปแบบข้อมูลใน Sheet รายการ
+      for (let row = expenseRange.s.r + 1; row <= expenseRange.e.r; row++) {
+        for (let col = expenseRange.s.c; col <= expenseRange.e.c; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+          if (expenseWorksheet[cellAddress]) {
+            // จัดรูปแบบคอลัมน์จำนวนเงิน
+            if (col === 3) { // คอลัมน์จำนวนเงิน
+              expenseWorksheet[cellAddress].s = {
+                font: { bold: true, color: { rgb: "C00000" } },
+                alignment: { horizontal: "right" },
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            } else {
+              expenseWorksheet[cellAddress].s = {
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // จัดรูปแบบข้อมูลใน Sheet สรุป
+      for (let row = summaryRange.s.r + 1; row <= summaryRange.e.r; row++) {
+        for (let col = summaryRange.s.c; col <= summaryRange.e.c; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+          if (summaryWorksheet[cellAddress]) {
+            const cellValue = summaryWorksheet[cellAddress].v
+            
+            // จัดรูปแบบหัวข้อพิเศษ
+            if (typeof cellValue === 'string' && cellValue.includes('===')) {
+              summaryWorksheet[cellAddress].s = {
+                font: { bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "FF6600" } },
+                alignment: { horizontal: "center", vertical: "center" },
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            }
+            // จัดรูปแบบข้อมูลสรุปทั่วไป
+            else if (typeof cellValue === 'string' && (cellValue.includes('รายงาน') || cellValue.includes('วันที่') || cellValue.includes('จำนวนรายการทั้งหมด'))) {
+              summaryWorksheet[cellAddress].s = {
+                font: { bold: true, color: { rgb: "000000" } },
+                fill: { fgColor: { rgb: "E6F3FF" } },
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            }
+            // จัดรูปแบบคอลัมน์จำนวนเงิน
+            else if (col === 1 && cellValue && cellValue !== '') { // คอลัมน์จำนวนเงิน
+              summaryWorksheet[cellAddress].s = {
+                font: { bold: true, color: { rgb: "C00000" } },
+                alignment: { horizontal: "right" },
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            }
+            // จัดรูปแบบข้อมูลปกติ
+            else {
+              summaryWorksheet[cellAddress].s = {
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Export ไฟล์
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      saveAs(blob, `${fileName}.xlsx`)
+
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      alert('เกิดข้อผิดพลาดในการ export ไฟล์')
     }
   }
 
@@ -416,7 +753,7 @@ export default function ExpenseEntry() {
 
     // ตรวจสอบว่าถ้าเลือก "เพิ่มหมวดหมู่ใหม่" ต้องกรอกหมวดหมู่เพิ่มเติม
     if (formData.group === "เพิ่มหมวดหมู่ใหม่" && !formData.customGroup.trim()) {
-      alert("กรุณาระบุหมวดหมู่")
+      alert("กรุณาระบุหมวดหมู่ค่าใช้จ่าย")
       return
     }
 
@@ -439,6 +776,21 @@ export default function ExpenseEntry() {
       const categoryName = formData.group === "เพิ่มหมวดหมู่ใหม่" 
         ? formData.customGroup.trim() 
         : formData.group
+
+      // สร้างหมวดหมู่ใหม่ถ้าเลือก "เพิ่มหมวดหมู่ใหม่"
+      if (formData.group === "เพิ่มหมวดหมู่ใหม่" && categoryService) {
+        try {
+          await categoryService.createCategory({
+            name: formData.customGroup.trim(),
+            type: 'expense',
+            description: `หมวดหมู่ค่าใช้จ่าย: ${formData.customGroup.trim()}`,
+            createdBy: user?.name || 'system'
+          })
+          console.log('Created new expense category:', formData.customGroup.trim())
+        } catch (error) {
+          console.error('Error creating expense category:', error)
+        }
+      }
 
       // สร้างรายการค่าใช้จ่ายใหม่ถ้าเลือก "เพิ่มรายการใหม่"
       if (formData.item === "เพิ่มรายการใหม่" && expenseItemService) {
@@ -465,7 +817,9 @@ export default function ExpenseEntry() {
         note: formData.note || "ไม่มีหมายเหตุ"
       }
 
+      console.log('Sending expense data:', expenseData)
       const response = await expenseService.createExpense(expenseData)
+      console.log('Expense response:', response)
       
       if (Array.isArray(response) || response.success) {
         // Reset form
@@ -516,7 +870,7 @@ export default function ExpenseEntry() {
     }
 
     try {
-      // Updating expense status
+      console.log('Updating expense status:', editingExpense.id, editFormData.status)
       
       // Update expense status in backend
       const response = await expenseService.updateExpenseStatus(editingExpense.id, editFormData.status)
@@ -561,265 +915,6 @@ export default function ExpenseEntry() {
     }
   };
 
-  // ฟังก์ชันสำหรับส่งออกข้อมูลเป็น Excel
-  const exportToExcel = () => {
-    if (filteredExpenses.length === 0) {
-      alert("ไม่มีข้อมูลที่จะส่งออก");
-      return;
-    }
-
-    try {
-      // เตรียมข้อมูลสำหรับ Excel
-      const excelData = filteredExpenses.map((expense, index) => ({
-        'ลำดับ': index + 1,
-        'วันที่': expense.date,
-        'รายการค่าใช้จ่าย': expense.name,
-        'จำนวนเงิน (บาท)': expense.amount,
-        'โครงการ': expense.projectName || 'ไม่มีโปรเจกต์',
-        'หมวดหมู่': expense.category,
-        'สถานะ': expense.status ? 'ชำระแล้ว' : 'ค้างจ่าย',
-        'หมายเหตุ': expense.note || ''
-      }));
-
-      // สร้าง worksheet
-      const ws = XLSX.utils.json_to_sheet(excelData);
-
-      // กำหนดความกว้างของคอลัมน์
-      const columnWidths = [
-        { wch: 8 },   // ลำดับ
-        { wch: 12 },  // วันที่
-        { wch: 35 },  // รายการค่าใช้จ่าย
-        { wch: 18 },  // จำนวนเงิน
-        { wch: 30 },  // โครงการ
-        { wch: 18 },  // หมวดหมู่
-        { wch: 15 },  // สถานะ
-        { wch: 40 }   // หมายเหตุ
-      ];
-      ws['!cols'] = columnWidths;
-
-      // จัดรูปแบบหัวตาราง
-      const headerStyle = {
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "4472C4" } },
-        alignment: { horizontal: "center", vertical: "center" },
-        border: {
-          top: { style: "thin", color: { rgb: "000000" } },
-          bottom: { style: "thin", color: { rgb: "000000" } },
-          left: { style: "thin", color: { rgb: "000000" } },
-          right: { style: "thin", color: { rgb: "000000" } }
-        }
-      };
-
-      // จัดรูปแบบข้อมูล
-      const dataStyle = {
-        font: { color: { rgb: "000000" } },
-        alignment: { vertical: "center" },
-        border: {
-          top: { style: "thin", color: { rgb: "CCCCCC" } },
-          bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-          left: { style: "thin", color: { rgb: "CCCCCC" } },
-          right: { style: "thin", color: { rgb: "CCCCCC" } }
-        }
-      };
-
-      // จัดรูปแบบเฉพาะคอลัมน์
-      const numberStyle = {
-        ...dataStyle,
-        alignment: { horizontal: "right", vertical: "center" },
-        numFmt: "#,##0.00"
-      };
-
-      const statusStyle = {
-        ...dataStyle,
-        alignment: { horizontal: "center", vertical: "center" },
-        fill: { fgColor: { rgb: "E8F5E8" } }
-      };
-
-      // ใช้รูปแบบกับเซลล์
-      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-      
-      for (let col = range.s.c; col <= range.e.c; col++) {
-        const headerCell = XLSX.utils.encode_cell({ r: 0, c: col });
-        if (ws[headerCell]) {
-          ws[headerCell].s = headerStyle;
-        }
-        
-        // จัดรูปแบบข้อมูลในแต่ละคอลัมน์
-        for (let row = range.s.r + 1; row <= range.e.r; row++) {
-          const cell = XLSX.utils.encode_cell({ r: row, c: col });
-          if (ws[cell]) {
-            let cellStyle;
-            
-            if (col === 0) { // ลำดับ
-              cellStyle = { ...dataStyle, alignment: { horizontal: "center", vertical: "center" } };
-            } else if (col === 3) { // จำนวนเงิน
-              cellStyle = numberStyle;
-            } else if (col === 6) { // สถานะ
-              cellStyle = statusStyle;
-            } else {
-              cellStyle = dataStyle;
-            }
-            
-            // เพิ่มสีพื้นหลังสลับแถว
-            if (row % 2 === 0) {
-              cellStyle = { ...cellStyle, fill: { fgColor: { rgb: "F8F9FA" } } };
-            }
-            
-            ws[cell].s = cellStyle;
-          }
-        }
-      }
-
-      // กำหนดความสูงของแถวหัวตาราง
-      ws['!rows'] = [{ hpt: 25 }];
-
-      // สร้าง workbook
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'รายการค่าใช้จ่าย');
-
-      // ตรวจสอบว่ามีการกรองหรือไม่
-      const hasFilters = searchName || searchAmount || searchStartDate || searchEndDate || searchProject !== "all" || searchCategory !== "all" || searchStatus !== "all";
-
-      // เพิ่มยอดสรุปตามตัวกรองที่เลือก
-      const summaryData = [
-        { 'รายการ': 'จำนวนรายการทั้งหมด', 'ค่า': filteredExpenses.length },
-        { 'รายการ': 'ยอดรวมทั้งหมด', 'ค่า': totalExpenses },
-        { 'รายการ': 'ยอดที่ชำระแล้ว', 'ค่า': paidExpenses },
-        { 'รายการ': 'ยอดที่ค้างชำระ', 'ค่า': unpaidExpenses },
-        { 'รายการ': 'อัตราการชำระ (%)', 'ค่า': paidPercentage.toFixed(2) + '%' }
-      ];
-
-      // เพิ่มข้อมูลตัวกรองที่ใช้
-      if (hasFilters) {
-        const filterInfo = [];
-        if (searchName) filterInfo.push(`ชื่อ: ${searchName}`);
-        if (searchAmount) filterInfo.push(`จำนวนเงิน: ${searchAmount}`);
-        if (searchStartDate) filterInfo.push(`ตั้งแต่: ${searchStartDate}`);
-        if (searchEndDate) filterInfo.push(`ถึง: ${searchEndDate}`);
-        if (searchProject !== "all") filterInfo.push(`โครงการ: ${searchProject}`);
-        if (searchCategory !== "all") filterInfo.push(`หมวดหมู่: ${searchCategory}`);
-        if (searchStatus !== "all") filterInfo.push(`สถานะ: ${searchStatus === "paid" ? "ชำระแล้ว" : "ค้างจ่าย"}`);
-        
-        if (filterInfo.length > 0) {
-          summaryData.unshift({ 'รายการ': 'ตัวกรองที่ใช้', 'ค่า': filterInfo.join(', ') });
-        }
-      }
-
-      const summaryWs = XLSX.utils.json_to_sheet(summaryData);
-      
-      // จัดรูปแบบหัวตารางสรุป
-      const summaryHeaderStyle = {
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "4472C4" } },
-        alignment: { horizontal: "center", vertical: "center" },
-        border: {
-          top: { style: "thin", color: { rgb: "000000" } },
-          bottom: { style: "thin", color: { rgb: "000000" } },
-          left: { style: "thin", color: { rgb: "000000" } },
-          right: { style: "thin", color: { rgb: "000000" } }
-        }
-      };
-
-      // จัดรูปแบบข้อมูลสรุป
-      const summaryDataStyle = {
-        font: { color: { rgb: "000000" } },
-        alignment: { vertical: "center" },
-        border: {
-          top: { style: "thin", color: { rgb: "CCCCCC" } },
-          bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-          left: { style: "thin", color: { rgb: "CCCCCC" } },
-          right: { style: "thin", color: { rgb: "CCCCCC" } }
-        }
-      };
-
-      // ใช้รูปแบบกับเซลล์สรุป
-      const summaryRange = XLSX.utils.decode_range(summaryWs['!ref'] || 'A1');
-      
-      for (let col = summaryRange.s.c; col <= summaryRange.e.c; col++) {
-        const headerCell = XLSX.utils.encode_cell({ r: 0, c: col });
-        if (summaryWs[headerCell]) {
-          summaryWs[headerCell].s = summaryHeaderStyle;
-        }
-        
-        for (let row = summaryRange.s.r + 1; row <= summaryRange.e.r; row++) {
-          const cell = XLSX.utils.encode_cell({ r: row, c: col });
-          if (summaryWs[cell]) {
-            summaryWs[cell].s = summaryDataStyle;
-          }
-        }
-      }
-
-      // กำหนดความกว้างของคอลัมน์สรุป
-      summaryWs['!cols'] = [
-        { wch: 25 },   // รายการ
-        { wch: 20 }    // ค่า
-      ];
-
-      XLSX.utils.book_append_sheet(wb, summaryWs, 'ยอดสรุป');
-
-      // สร้างชื่อไฟล์ตามตัวกรอง
-      let fileName = '';
-      const currentDate = new Date().toISOString().split('T')[0];
-      
-      if (hasFilters) {
-        // มีการกรอง - หาช่วงวันที่
-        const dates = filteredExpenses.map(e => new Date(e.date)).sort((a, b) => a.getTime() - b.getTime());
-        const startDate = dates[0];
-        const endDate = dates[dates.length - 1];
-        
-        if (startDate && endDate) {
-          const startDateStr = startDate.toISOString().split('T')[0];
-          const endDateStr = endDate.toISOString().split('T')[0];
-          
-          if (startDateStr === endDateStr) {
-            fileName = `รายการค่าใช้จ่าย_${startDateStr}.xlsx`;
-          } else {
-            fileName = `รายการค่าใช้จ่าย_${startDateStr}_ถึง_${endDateStr}.xlsx`;
-          }
-        } else {
-          fileName = `รายการค่าใช้จ่าย_กรองแล้ว_${currentDate}.xlsx`;
-        }
-      } else {
-        // ไม่มีการกรอง - ใช้ข้อมูลทั้งหมด
-        fileName = `รายการค่าใช้จ่ายทั้งหมด_ณ_${currentDate}.xlsx`;
-      }
-
-      // ส่งออกไฟล์
-      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      saveAs(data, fileName);
-
-      // สร้างข้อความแจ้งเตือนตามประเภทการส่งออก
-      let message = `ส่งออกข้อมูล ${filteredExpenses.length} รายการเรียบร้อยแล้ว`;
-      
-      if (hasFilters) {
-        const dates = filteredExpenses.map(e => new Date(e.date)).sort((a, b) => a.getTime() - b.getTime());
-        const startDate = dates[0];
-        const endDate = dates[dates.length - 1];
-        
-        if (startDate && endDate) {
-          const startDateStr = startDate.toISOString().split('T')[0];
-          const endDateStr = endDate.toISOString().split('T')[0];
-          
-          if (startDateStr === endDateStr) {
-            message = `ส่งออกข้อมูล ${filteredExpenses.length} รายการ วันที่ ${startDateStr} เรียบร้อยแล้ว`;
-          } else {
-            message = `ส่งออกข้อมูล ${filteredExpenses.length} รายการ ตั้งแต่ ${startDateStr} ถึง ${endDateStr} เรียบร้อยแล้ว`;
-          }
-        } else {
-          message = `ส่งออกข้อมูล ${filteredExpenses.length} รายการ (กรองแล้ว) เรียบร้อยแล้ว`;
-        }
-      } else {
-        message = `ส่งออกข้อมูลทั้งหมด ${filteredExpenses.length} รายการ ณ วันที่ ${currentDate} เรียบร้อยแล้ว`;
-      }
-      
-      alert(message);
-    } catch (error) {
-      console.error('Error exporting to Excel:', error);
-      alert("เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel");
-    }
-  };
-
   const filteredExpenses = expenses.filter(expense => {
     // Name filter
     const matchesName = !searchName || expense.name.toLowerCase().includes(searchName.toLowerCase())
@@ -827,15 +922,9 @@ export default function ExpenseEntry() {
     // Amount filter
     const matchesAmount = !searchAmount || expense.amount.toString().includes(searchAmount)
     
-    // Date filter - รองรับช่วงวันที่
-    let matchesDate = true
-    if (searchStartDate && searchEndDate) {
-      matchesDate = expense.date >= searchStartDate && expense.date <= searchEndDate
-    } else if (searchStartDate) {
-      matchesDate = expense.date === searchStartDate
-    } else if (searchEndDate) {
-      matchesDate = expense.date <= searchEndDate
-    }
+    // Date filter
+    const matchesDate = (!searchStartDate || expense.date >= searchStartDate) && 
+                       (!searchEndDate || expense.date <= searchEndDate)
     
     // Project filter
     const matchesProject = !searchProject || searchProject === "all" || expense.projectName === searchProject
@@ -1021,14 +1110,14 @@ export default function ExpenseEntry() {
                   />
                 </div>
                 <div className="relative">
-                  <Label htmlFor="group" className="text-sm text-gray-700">หมวดหมู่</Label>
+                  <Label htmlFor="group" className="text-sm text-gray-700">หมวดหมู่ค่าใช้จ่าย</Label>
                   <div className="relative">
                     <Input
                       id="group"
                       type="text"
                       value={categorySearchValue}
                       onChange={(e) => handleCategorySearchChange(e.target.value)}
-                      placeholder="พิมพ์เพื่อค้นหาหมวดหมู่..."
+                      placeholder="พิมพ์เพื่อค้นหาหมวดหมู่ค่าใช้จ่าย..."
                       className="bg-white border-gray-300 text-sm"
                       required
                       onFocus={() => {
@@ -1072,8 +1161,8 @@ export default function ExpenseEntry() {
                           setFormData(prev => ({ ...prev, customGroup: "" }))
                         }}
                       >
-                        <div className="font-medium text-sm text-blue-600">+ เพิ่มหมวดหมู่ใหม่</div>
-                        <div className="text-xs text-blue-500">สร้างหมวดหมู่ใหม่</div>
+                        <div className="font-medium text-sm text-blue-600">+ เพิ่มหมวดหมู่ค่าใช้จ่ายใหม่</div>
+                        <div className="text-xs text-blue-500">สร้างหมวดหมู่ค่าใช้จ่ายใหม่</div>
                       </div>
                     </div>
                   )}
@@ -1083,13 +1172,13 @@ export default function ExpenseEntry() {
               {/* Custom Group Input - แสดงเมื่อเลือก "เพิ่มหมวดหมู่ใหม่" */}
               {formData.group === "เพิ่มหมวดหมู่ใหม่" && (
                 <div>
-                  <Label htmlFor="customGroup" className="text-sm text-gray-700">ระบุหมวดหมู่</Label>
+                                      <Label htmlFor="customGroup" className="text-sm text-gray-700">ระบุหมวดหมู่ค่าใช้จ่าย</Label>
                   <Input
                     id="customGroup"
                     type="text"
                     value={formData.customGroup}
                     onChange={(e) => handleInputChange("customGroup", e.target.value)}
-                    placeholder="กรอกหมวดหมู่ที่ต้องการ..."
+                                          placeholder="กรอกหมวดหมู่ค่าใช้จ่ายที่ต้องการ..."
                     className="bg-white border-gray-300 text-sm"
                     required={formData.group === "เพิ่มหมวดหมู่ใหม่"}
                   />
@@ -1100,7 +1189,7 @@ export default function ExpenseEntry() {
                 <div>
                   <Label htmlFor="projectName" className="text-sm text-gray-700">โครงการ</Label>
                   <Select value={formData.projectName} onValueChange={(value) => handleInputChange("projectName", value)}>
-                    <SelectTrigger id="projectName" className="bg-white border-gray-300 text-sm">
+                    <SelectTrigger className="bg-white border-gray-300 text-sm">
                       <SelectValue placeholder="เลือกโครงการ" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1163,7 +1252,7 @@ export default function ExpenseEntry() {
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-red-600">{totalExpenses.toLocaleString("th-TH")}</div>
-            <p className="text-xs text-gray-500">{filteredExpenses.length} รายการ</p>
+            <p className="text-xs text-gray-500">{filteredExpenses.length.toLocaleString("th-TH")} รายการ</p>
           </CardContent>
         </Card>
 
@@ -1173,7 +1262,7 @@ export default function ExpenseEntry() {
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">{paidExpenses.toLocaleString("th-TH")}</div>
-            <p className="text-xs text-gray-500">{filteredExpenses.filter(e => e.status).length} รายการ</p>
+            <p className="text-xs text-gray-500">{filteredExpenses.filter(e => e.status).length.toLocaleString("th-TH")} รายการ</p>
           </CardContent>
         </Card>
 
@@ -1183,7 +1272,7 @@ export default function ExpenseEntry() {
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-orange-600">{unpaidExpenses.toLocaleString("th-TH")}</div>
-            <p className="text-xs text-gray-500">{filteredExpenses.filter(e => !e.status).length} รายการ</p>
+            <p className="text-xs text-gray-500">{filteredExpenses.filter(e => !e.status).length.toLocaleString("th-TH")} รายการ</p>
           </CardContent>
         </Card>
 
@@ -1209,12 +1298,12 @@ export default function ExpenseEntry() {
                   <CardTitle className="text-sm font-semibold text-gray-900">{category.category}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-lg font-bold text-red-600">{category.amount.toLocaleString()} บาท</div>
+                  <div className="text-lg font-bold text-red-600">{category.amount.toLocaleString("th-TH")} บาท</div>
                   <div className="text-xs text-gray-500 mt-1">
                     {totalExpenses > 0 ? ((category.amount / totalExpenses) * 100).toFixed(1) : 0}% ของค่าใช้จ่ายที่แสดง
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
-                    {filteredExpenses.filter(e => e.category === category.category).length} รายการ
+                    {filteredExpenses.filter(e => e.category === category.category).length.toLocaleString("th-TH")} รายการ
                   </div>
                 </CardContent>
               </Card>
@@ -1231,18 +1320,17 @@ export default function ExpenseEntry() {
         <CardContent className="space-y-3 sm:space-y-4">
           <div className="flex justify-between items-center mb-4">
             <div className="text-sm text-gray-600">
-              แสดง {filteredExpenses.length} จาก {expenses.length} รายการ
+              แสดง {filteredExpenses.length.toLocaleString("th-TH")} จาก {expenses.length.toLocaleString("th-TH")} รายการ
             </div>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={exportToExcel}
-                className="text-xs bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                disabled={filteredExpenses.length === 0}
+                className="text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
               >
-                <Download className="w-3 h-3 mr-1" />
-                ส่งออก Excel
+                <Download className="h-3 w-3 mr-1" />
+                Export Excel
               </Button>
               <Button
                 variant="outline"
@@ -1262,7 +1350,7 @@ export default function ExpenseEntry() {
               </Button>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="searchName" className="text-xs sm:text-sm text-gray-700">ชื่อรายการ</Label>
               <Input
@@ -1288,7 +1376,7 @@ export default function ExpenseEntry() {
             <div>
               <Label htmlFor="searchProject" className="text-xs sm:text-sm text-gray-700">โครงการ</Label>
               <Select value={searchProject} onValueChange={setSearchProject}>
-                <SelectTrigger id="searchProject" className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
                   <SelectValue placeholder="ทุกโครงการ" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1302,13 +1390,13 @@ export default function ExpenseEntry() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="searchCategory" className="text-xs sm:text-sm text-gray-700">หมวดหมู่</Label>
+                              <Label htmlFor="searchCategory" className="text-xs sm:text-sm text-gray-700">หมวดหมู่ค่าใช้จ่าย</Label>
               <Select value={searchCategory} onValueChange={setSearchCategory}>
-                <SelectTrigger id="searchCategory" className="bg-white border-gray-300 text-xs sm:text-sm">
-                  <SelectValue placeholder="ทุกหมวดหมู่" />
+                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                  <SelectValue placeholder="ทุกหมวดหมู่ค่าใช้จ่าย" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">ทุกหมวดหมู่</SelectItem>
+                                      <SelectItem value="all">ทุกหมวดหมู่ค่าใช้จ่าย</SelectItem>
                   {availableCategories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
@@ -1318,26 +1406,41 @@ export default function ExpenseEntry() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="searchStartDate" className="text-xs sm:text-sm text-gray-700">ตั้งแต่</Label>
-              <Input
-                id="searchStartDate"
-                type="date"
-                value={searchStartDate}
-                onChange={(e) => setSearchStartDate(e.target.value)}
-                className="bg-white border-gray-300 text-xs sm:text-sm"
-                placeholder="เลือกวันที่เริ่มต้น"
-              />
+              <Label htmlFor="searchStatus" className="text-xs sm:text-sm text-gray-700">สถานะการชำระ</Label>
+              <Select value={searchStatus} onValueChange={setSearchStatus}>
+                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                  <SelectValue placeholder="ทุกสถานะ" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ทุกสถานะ</SelectItem>
+                  <SelectItem value="paid">ชำระแล้ว</SelectItem>
+                  <SelectItem value="unpaid">ค้างจ่าย</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <Label htmlFor="searchEndDate" className="text-xs sm:text-sm text-gray-700">ถึง</Label>
-              <Input
-                id="searchEndDate"
-                type="date"
-                value={searchEndDate}
-                onChange={(e) => setSearchEndDate(e.target.value)}
-                className="bg-white border-gray-300 text-xs sm:text-sm"
-                placeholder="เลือกวันที่สิ้นสุด"
-              />
+            <div className="col-span-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="searchStartDate" className="text-xs sm:text-sm text-gray-700">วันที่เริ่มต้น</Label>
+                  <Input
+                    id="searchStartDate"
+                    type="date"
+                    value={searchStartDate}
+                    onChange={(e) => setSearchStartDate(e.target.value)}
+                    className="bg-white border-gray-300 text-xs sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="searchEndDate" className="text-xs sm:text-sm text-gray-700">วันที่สิ้นสุด</Label>
+                  <Input
+                    id="searchEndDate"
+                    type="date"
+                    value={searchEndDate}
+                    onChange={(e) => setSearchEndDate(e.target.value)}
+                    className="bg-white border-gray-300 text-xs sm:text-sm"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -1372,7 +1475,7 @@ export default function ExpenseEntry() {
                         )}
                       </div>
                       <div className="text-right flex-shrink-0 ml-2">
-                        <p className="font-medium text-xl text-red-600">{expense.amount.toLocaleString("th-TH")} บาท</p>
+                        <p className="font-medium text-xl text-red-600">{Number(expense.amount).toLocaleString("th-TH")} บาท</p>
                       </div>
                     </div>
                     <div className="flex justify-end space-x-2 pt-3 border-t border-gray-100">
@@ -1440,21 +1543,21 @@ export default function ExpenseEntry() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700">จำนวนเงิน</Label>
-                  <p className="text-sm text-gray-900 mt-1">{editingExpense.amount.toLocaleString("th-TH")} บาท</p>
+                  <p className="text-sm text-gray-900 mt-1">{Number(editingExpense.amount).toLocaleString("th-TH")} บาท</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700">วันที่</Label>
                   <p className="text-sm text-gray-900 mt-1">{editingExpense.date}</p>
                 </div>
                 <div>
-                  <Label htmlFor="editStatus" className="text-sm font-medium text-gray-700">สถานะการชำระ</Label>
+                  <Label htmlFor="status" className="text-sm font-medium text-gray-700">สถานะการชำระ</Label>
                   <div className="flex items-center space-x-2 mt-2">
                     <Checkbox
-                      id="editStatus"
+                      id="status"
                       checked={editFormData.status}
                       onCheckedChange={(checked) => setEditFormData({ status: checked as boolean })}
                     />
-                    <Label htmlFor="editStatus" className="text-sm text-gray-700">ชำระแล้ว</Label>
+                    <Label htmlFor="status" className="text-sm text-gray-700">ชำระแล้ว</Label>
                   </div>
                 </div>
                 <div className="flex justify-end space-x-2 pt-4">

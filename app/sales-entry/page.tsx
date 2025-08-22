@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Trash2, ChevronDown, Download } from "lucide-react"
+import { Search, Plus, Trash2, Download } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { salesService, CreateSalesEntryRequest } from "@/lib/services/salesService"
 import { projectService } from "@/lib/services/projectService"
@@ -44,7 +44,7 @@ export default function SalesEntry() {
     sellingPrice: "",
     totalPrice: "",
     projectType: "",
-    customType: "", // เพิ่มฟิลด์สำหรับกรอกประเภทอิสระ
+
     note: "", // เพิ่มฟิลด์สำหรับหมายเหตุ
   })
 
@@ -68,10 +68,6 @@ export default function SalesEntry() {
 
   // เพิ่ม state สำหรับเก็บประเภทที่ใช้จริง
   const [availableTypes, setAvailableTypes] = useState<string[]>([])
-  const [salesTypes, setSalesTypes] = useState<any[]>([])
-  const [filteredSalesTypes, setFilteredSalesTypes] = useState<any[]>([])
-  const [showTypeDropdown, setShowTypeDropdown] = useState(false)
-  const [typeSearchValue, setTypeSearchValue] = useState("")
   const [categoryService] = useState(() => {
     try {
       const { categoryService } = require('@/lib/services')
@@ -101,65 +97,13 @@ export default function SalesEntry() {
     }
   }, [])
 
-  // Filter sales types based on search
-  useEffect(() => {
-    if (typeSearchValue.trim() === "") {
-      setFilteredSalesTypes(salesTypes)
-    } else {
-      const filtered = salesTypes.filter(type => 
-        type.name?.toLowerCase().includes(typeSearchValue.toLowerCase()) ||
-        type.category?.toLowerCase().includes(typeSearchValue.toLowerCase())
-      )
-      setFilteredSalesTypes(filtered)
-    }
-  }, [typeSearchValue, salesTypes])
+
 
   const fetchData = async () => {
     try {
       setLoading(true)
       
-      // Fetch sales types
-      if (categoryService) {
-        try {
-          const salesTypesResponse = await categoryService.getSalesCategories()
-          
-          if (salesTypesResponse.success && salesTypesResponse.result && salesTypesResponse.result.result && Array.isArray(salesTypesResponse.result.result)) {
-            const types = salesTypesResponse.result.result.filter((type: any) => type.isActive)
-            setSalesTypes(types)
-            setFilteredSalesTypes(types)
-          } else if (salesTypesResponse.success && salesTypesResponse.result && Array.isArray(salesTypesResponse.result)) {
-            // Handle single-level nesting
-            const types = salesTypesResponse.result.filter((type: any) => type.isActive)
-            setSalesTypes(types)
-            setFilteredSalesTypes(types)
-          } else {
-            // Fallback data
-            const fallbackTypes = [
-              { id: "1", name: "การขายระบบ ERP", category: "Software", isActive: true },
-              { id: "2", name: "การดูแลระบบ Database", category: "Service", isActive: true },
-              { id: "3", name: "การพัฒนาระบบ Web", category: "Development", isActive: true },
-              { id: "4", name: "การให้คำปรึกษา IT", category: "Consulting", isActive: true },
-              { id: "5", name: "การฝึกอบรม", category: "Training", isActive: true },
-              { id: "6", name: "การบำรุงรักษาระบบ", category: "Maintenance", isActive: true }
-            ]
-            setSalesTypes(fallbackTypes)
-            setFilteredSalesTypes(fallbackTypes)
-          }
-        } catch (error) {
-          console.error('Error fetching sales types:', error)
-          // Fallback data
-          const fallbackTypes = [
-            { id: "1", name: "การขายระบบ ERP", category: "Software", isActive: true },
-            { id: "2", name: "การดูแลระบบ Database", category: "Service", isActive: true },
-            { id: "3", name: "การพัฒนาระบบ Web", category: "Development", isActive: true },
-            { id: "4", name: "การให้คำปรึกษา IT", category: "Consulting", isActive: true },
-            { id: "5", name: "การฝึกอบรม", category: "Training", isActive: true },
-            { id: "6", name: "การบำรุงรักษาระบบ", category: "Maintenance", isActive: true }
-          ]
-          setSalesTypes(fallbackTypes)
-          setFilteredSalesTypes(fallbackTypes)
-        }
-      }
+
 
       // Fetch projects
       const projectsResponse = await projectService.getAllProjects({
@@ -220,6 +164,324 @@ export default function SalesEntry() {
     }
   }
 
+  // ฟังก์ชันสำหรับ export Excel
+  const exportToExcel = () => {
+    try {
+      // ข้อมูลที่กรองแล้ว
+      const filteredData = salesHistory.filter(sale => {
+        const matchesSearch = !searchTerm || 
+          sale.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          sale.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          sale.qty?.toString().includes(searchTerm) ||
+          sale.price?.toString().includes(searchTerm)
+        
+        const matchesDate = (!searchStartDate || sale.date >= searchStartDate) && 
+                           (!searchEndDate || sale.date <= searchEndDate)
+        
+        const matchesAmount = !searchAmount || sale.totalPrice.toString().includes(searchAmount)
+        
+        const matchesProject = !searchProject || searchProject === "all" || sale.projectName === searchProject
+        
+        const matchesType = !searchType || searchType === "all" || sale.type === searchType
+        
+        return matchesSearch && matchesDate && matchesAmount && matchesProject && matchesType
+      }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // เรียงตามวันที่ใหม่ไปเก่า
+
+      if (filteredData.length === 0) {
+        alert('ไม่มีข้อมูลสำหรับ export')
+        return
+      }
+
+      // สร้างชื่อไฟล์
+      let fileName = 'ยอดขาย'
+      if (searchStartDate && searchEndDate) {
+        if (searchStartDate === searchEndDate) {
+          fileName += `_${searchStartDate}`
+        } else {
+          fileName += `_${searchStartDate}_ถึง_${searchEndDate}`
+        }
+      } else if (searchStartDate) {
+        fileName += `_ตั้งแต่_${searchStartDate}`
+      } else if (searchEndDate) {
+        fileName += `_จนถึง_${searchEndDate}`
+      } else {
+        fileName += '_ทั้งหมด_' + new Date().toISOString().split('T')[0]
+      }
+
+      // สร้างข้อมูลสำหรับ Sheet รายการ
+      const salesData = filteredData.map((sale, index) => ({
+        'ลำดับ': index + 1,
+        'วันที่': sale.date,
+        'โครงการ': sale.projectName,
+        'รายการ': sale.description,
+        'จำนวน': Number(sale.qty || 0).toLocaleString('th-TH'),
+        'ราคาต่อหน่วย (บาท)': Number(sale.price || 0).toLocaleString('th-TH'),
+        'ยอดรวม (บาท)': Number(sale.totalPrice).toLocaleString('th-TH'),
+        'ประเภท': sale.type || 'ไม่ระบุ'
+      }))
+
+      // สร้างข้อมูลสำหรับ Sheet สรุป
+      const summaryData = []
+      
+      // เพิ่มข้อมูลสรุปทั่วไป
+      summaryData.push({
+        'สรุปยอดขาย': `รายงานยอดขาย ${fileName.replace('ยอดขาย_', '')}`,
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      summaryData.push({
+        'สรุปยอดขาย': `วันที่สร้างรายงาน: ${new Date().toLocaleDateString('th-TH')}`,
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      const totalSalesAmount = filteredData.reduce((sum, sale) => sum + Number(sale.totalPrice), 0)
+      const totalQuantity = filteredData.reduce((sum, sale) => sum + Number(sale.qty || 0), 0)
+      
+      summaryData.push({
+        'สรุปยอดขาย': `จำนวนรายการทั้งหมด: ${filteredData.length} รายการ`,
+        'จำนวนเงิน (บาท)': `รวม: ${totalSalesAmount.toLocaleString('th-TH')} บาท`,
+        'จำนวนรายการ': ''
+      })
+      
+      summaryData.push({
+        'สรุปยอดขาย': `จำนวนสินค้าทั้งหมด: ${totalQuantity.toLocaleString('th-TH')} ชิ้น`,
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      summaryData.push({
+        'สรุปยอดขาย': '',
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      // สรุปตามโครงการ
+      summaryData.push({
+        'สรุปยอดขาย': '=== สรุปตามโครงการ ===',
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      const projectSummary = filteredData.reduce((acc, sale) => {
+        const projectName = sale.projectName || 'ไม่มีโครงการ'
+        acc[projectName] = (acc[projectName] || 0) + Number(sale.totalPrice)
+        return acc
+      }, {} as Record<string, number>)
+      
+      Object.entries(projectSummary)
+        .sort(([,a], [,b]) => b - a) // เรียงตามจำนวนเงินมากไปน้อย
+        .forEach(([project, amount]) => {
+          summaryData.push({
+            'สรุปยอดขาย': project,
+            'จำนวนเงิน (บาท)': amount.toLocaleString('th-TH'),
+            'จำนวนรายการ': filteredData.filter(s => s.projectName === project).length
+          })
+        })
+
+      summaryData.push({
+        'สรุปยอดขาย': '',
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+
+      // สรุปตามประเภท
+      summaryData.push({
+        'สรุปยอดขาย': '=== สรุปตามประเภท ===',
+        'จำนวนเงิน (บาท)': '',
+        'จำนวนรายการ': ''
+      })
+      
+      const typeSummary = filteredData.reduce((acc, sale) => {
+        const type = sale.type || 'ไม่ระบุ'
+        acc[type] = (acc[type] || 0) + Number(sale.totalPrice)
+        return acc
+      }, {} as Record<string, number>)
+      
+      Object.entries(typeSummary)
+        .sort(([,a], [,b]) => b - a) // เรียงตามจำนวนเงินมากไปน้อย
+        .forEach(([type, amount]) => {
+          summaryData.push({
+            'สรุปยอดขาย': type,
+            'จำนวนเงิน (บาท)': amount.toLocaleString('th-TH'),
+            'จำนวนรายการ': filteredData.filter(s => s.type === type).length
+          })
+        })
+
+      // สร้าง workbook
+      const workbook = XLSX.utils.book_new()
+      
+      // Sheet รายการ
+      const salesWorksheet = XLSX.utils.json_to_sheet(salesData)
+      XLSX.utils.book_append_sheet(workbook, salesWorksheet, 'รายการยอดขาย')
+      
+      // Sheet สรุป
+      const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData)
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'สรุปยอดขาย')
+
+      // ตั้งค่าความกว้างคอลัมน์
+      const salesCols = [
+        { wch: 6 },   // ลำดับ
+        { wch: 15 },  // วันที่
+        { wch: 30 },  // โครงการ
+        { wch: 35 },  // รายการ
+        { wch: 12 },  // จำนวน
+        { wch: 18 },  // ราคาต่อหน่วย
+        { wch: 18 },  // ยอดรวม
+        { wch: 20 }   // ประเภท
+      ]
+      salesWorksheet['!cols'] = salesCols
+
+      const summaryCols = [
+        { wch: 25 },  // หมวดหมู่/โครงการ/ประเภท
+        { wch: 18 },  // จำนวนเงิน
+        { wch: 15 }   // จำนวนรายการ
+      ]
+      summaryWorksheet['!cols'] = summaryCols
+
+      // จัดรูปแบบ Header ของ Sheet รายการ
+      const salesRange = XLSX.utils.decode_range(salesWorksheet['!ref'] || 'A1')
+      for (let col = salesRange.s.c; col <= salesRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
+        if (salesWorksheet[cellAddress]) {
+          salesWorksheet[cellAddress].s = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "70AD47" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "thin" },
+              bottom: { style: "thin" },
+              left: { style: "thin" },
+              right: { style: "thin" }
+            }
+          }
+        }
+      }
+
+      // จัดรูปแบบ Header ของ Sheet สรุป
+      const summaryRange = XLSX.utils.decode_range(summaryWorksheet['!ref'] || 'A1')
+      for (let col = summaryRange.s.c; col <= summaryRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
+        if (summaryWorksheet[cellAddress]) {
+          summaryWorksheet[cellAddress].s = {
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "4472C4" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "thin" },
+              bottom: { style: "thin" },
+              left: { style: "thin" },
+              right: { style: "thin" }
+            }
+          }
+        }
+      }
+
+      // จัดรูปแบบข้อมูลใน Sheet รายการ
+      for (let row = salesRange.s.r + 1; row <= salesRange.e.r; row++) {
+        for (let col = salesRange.s.c; col <= salesRange.e.c; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+          if (salesWorksheet[cellAddress]) {
+            // จัดรูปแบบคอลัมน์จำนวนเงิน
+            if (col === 5 || col === 6) { // คอลัมน์ราคาและยอดรวม
+              salesWorksheet[cellAddress].s = {
+                font: { bold: true, color: { rgb: "C00000" } },
+                alignment: { horizontal: "right" },
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            } else {
+              salesWorksheet[cellAddress].s = {
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // จัดรูปแบบข้อมูลใน Sheet สรุป
+      for (let row = summaryRange.s.r + 1; row <= summaryRange.e.r; row++) {
+        for (let col = summaryRange.s.c; col <= summaryRange.e.c; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+          if (summaryWorksheet[cellAddress]) {
+            const cellValue = summaryWorksheet[cellAddress].v
+            
+            // จัดรูปแบบหัวข้อพิเศษ
+            if (typeof cellValue === 'string' && cellValue.includes('===')) {
+              summaryWorksheet[cellAddress].s = {
+                font: { bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "FF6600" } },
+                alignment: { horizontal: "center", vertical: "center" },
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            }
+            // จัดรูปแบบข้อมูลสรุปทั่วไป
+            else if (typeof cellValue === 'string' && (cellValue.includes('รายงาน') || cellValue.includes('วันที่') || cellValue.includes('จำนวนรายการ') || cellValue.includes('จำนวนสินค้า'))) {
+              summaryWorksheet[cellAddress].s = {
+                font: { bold: true, color: { rgb: "000000" } },
+                fill: { fgColor: { rgb: "E6F3FF" } },
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            }
+            // จัดรูปแบบคอลัมน์จำนวนเงิน
+            else if (col === 1 && cellValue && cellValue !== '') { // คอลัมน์จำนวนเงิน
+              summaryWorksheet[cellAddress].s = {
+                font: { bold: true, color: { rgb: "C00000" } },
+                alignment: { horizontal: "right" },
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            }
+            // จัดรูปแบบข้อมูลปกติ
+            else {
+              summaryWorksheet[cellAddress].s = {
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Export ไฟล์
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      saveAs(blob, `${fileName}.xlsx`)
+
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      alert('เกิดข้อผิดพลาดในการ export ไฟล์')
+    }
+  }
+
   const handleInputChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
 
@@ -239,50 +501,7 @@ export default function SalesEntry() {
     }
   }
 
-  const handleTypeSelect = (type: any) => {
-    // ไม่ให้เลือก "เพิ่มประเภทใหม่" เป็นประเภทปกติ
-    if (type.name === "เพิ่มประเภทใหม่") {
-      setFormData(prev => ({
-        ...prev,
-        description: "เพิ่มประเภทใหม่"
-      }))
-      setTypeSearchValue("เพิ่มประเภทใหม่")
-      setShowTypeDropdown(false)
-      return
-    }
-    
-    setFormData(prev => ({
-      ...prev,
-      description: type.name,
-      projectType: type.category
-    }))
-    setTypeSearchValue(type.name)
-    setShowTypeDropdown(false)
-  }
 
-  const handleTypeSearchChange = (value: string) => {
-    setTypeSearchValue(value)
-    setShowTypeDropdown(true)
-    
-    // If user clears the input, reset the form
-    if (value === "") {
-      setFormData(prev => ({
-        ...prev,
-        description: "",
-        projectType: ""
-      }))
-    }
-    
-    // If user starts typing and had "เพิ่มประเภทใหม่" selected, clear it
-    if (formData.description === "เพิ่มประเภทใหม่" && value !== "เพิ่มประเภทใหม่") {
-      setFormData(prev => ({
-        ...prev,
-        description: "",
-        projectType: "",
-        customType: ""
-      }))
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -298,11 +517,7 @@ export default function SalesEntry() {
       return
     }
 
-    // ตรวจสอบว่าถ้าเลือก "เพิ่มประเภทใหม่" ต้องกรอกประเภทเพิ่มเติม
-    if (formData.description === "เพิ่มประเภทใหม่" && !formData.customType.trim()) {
-      alert("กรุณาระบุประเภทการขาย")
-      return
-    }
+
 
     try {
       setSaving(true)
@@ -313,40 +528,22 @@ export default function SalesEntry() {
         return
       }
 
-      // ใช้ประเภทที่กรอกเองถ้าเลือก "เพิ่มประเภทใหม่"
-      let projectTypeName = formData.projectType
-      
-      if (formData.description === "เพิ่มประเภทใหม่") {
-        try {
-          const categoryResponse = await categoryService.createCategory({
-            name: formData.customType.trim(),
-            type: 'sales',
-            description: `ประเภทการขาย: ${formData.customType.trim()}`,
-            createdBy: user?.name || 'system'
-          })
-          
-          if (categoryResponse.success) {
-            projectTypeName = formData.customType.trim()
-            // Created new category
-          } else {
-            console.error('Failed to create category:', categoryResponse)
-          }
-        } catch (error) {
-          console.error('Error creating category:', error)
-        }
-      }
+      // ใช้ประเภทโครงการจากโปรเจกต์ที่เลือก
+      let projectTypeName = formData.projectType || selectedProject.type || 'Other'
 
       const salesData: CreateSalesEntryRequest = {
         date: formData.date,
         projectId: selectedProject.id,
-        description: formData.description === "เพิ่มประเภทใหม่" ? formData.customType.trim() : formData.description.trim() || 'รายการขาย',
+        description: formData.description.trim() || 'รายการขาย',
         totalPrice: Number(formData.totalPrice) || (Number(formData.quantity) * Number(formData.sellingPrice)) || 0,
         type: projectTypeName || selectedProject.type || 'Other',
         createdBy: user?.name || 'system',
-        note: formData.note || "ไม่มีหมายเหตุ"
+        note: formData.note || ""
       }
 
+      console.log('Sending sales data:', salesData)
       const response = await salesService.createSalesEntry(salesData)
+      console.log('Sales response:', response)
       
       if (Array.isArray(response) || response.success) {
         alert("บันทึกยอดขายเรียบร้อย!")
@@ -364,10 +561,10 @@ export default function SalesEntry() {
         sellingPrice: "",
         totalPrice: "",
         projectType: "",
-        customType: "",
+
         note: "",
       })
-      setTypeSearchValue("")
+
 
       // Close dialog
       setIsDialogOpen(false)
@@ -405,271 +602,6 @@ export default function SalesEntry() {
     }
   };
 
-  // ฟังก์ชันสำหรับส่งออกข้อมูลเป็น Excel
-  const exportToExcel = () => {
-    if (filteredSales.length === 0) {
-      alert("ไม่มีข้อมูลที่จะส่งออก");
-      return;
-    }
-
-    try {
-      // เตรียมข้อมูลสำหรับ Excel
-      const excelData = filteredSales.map((sale, index) => ({
-        'ลำดับ': index + 1,
-        'วันที่': sale.date,
-        'รายการขาย': sale.description,
-        'จำนวน': sale.qty || 0,
-        'ราคาต่อหน่วย (บาท)': sale.price || 0,
-        'ยอดขายรวม (บาท)': sale.totalPrice,
-        'โครงการ': sale.projectName,
-        'ประเภท': sale.type
-      }));
-
-      // สร้าง worksheet
-      const ws = XLSX.utils.json_to_sheet(excelData);
-
-      // กำหนดความกว้างของคอลัมน์
-      const columnWidths = [
-        { wch: 8 },   // ลำดับ
-        { wch: 12 },  // วันที่
-        { wch: 35 },  // รายการขาย
-        { wch: 12 },  // จำนวน
-        { wch: 18 },  // ราคาต่อหน่วย
-        { wch: 18 },  // ยอดขายรวม
-        { wch: 30 },  // โครงการ
-        { wch: 18 }   // ประเภท
-      ];
-      ws['!cols'] = columnWidths;
-
-      // จัดรูปแบบหัวตาราง
-      const headerStyle = {
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "70AD47" } },
-        alignment: { horizontal: "center", vertical: "center" },
-        border: {
-          top: { style: "thin", color: { rgb: "000000" } },
-          bottom: { style: "thin", color: { rgb: "000000" } },
-          left: { style: "thin", color: { rgb: "000000" } },
-          right: { style: "thin", color: { rgb: "000000" } }
-        }
-      };
-
-      // จัดรูปแบบข้อมูล
-      const dataStyle = {
-        font: { color: { rgb: "000000" } },
-        alignment: { vertical: "center" },
-        border: {
-          top: { style: "thin", color: { rgb: "CCCCCC" } },
-          bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-          left: { style: "thin", color: { rgb: "CCCCCC" } },
-          right: { style: "thin", color: { rgb: "CCCCCC" } }
-        }
-      };
-
-      // จัดรูปแบบเฉพาะคอลัมน์
-      const numberStyle = {
-        ...dataStyle,
-        alignment: { horizontal: "right", vertical: "center" },
-        numFmt: "#,##0.00"
-      };
-
-      const quantityStyle = {
-        ...dataStyle,
-        alignment: { horizontal: "center", vertical: "center" },
-        numFmt: "#,##0"
-      };
-
-      const typeStyle = {
-        ...dataStyle,
-        alignment: { horizontal: "center", vertical: "center" },
-        fill: { fgColor: { rgb: "E8F4E8" } }
-      };
-
-      // ใช้รูปแบบกับเซลล์
-      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-      
-      for (let col = range.s.c; col <= range.e.c; col++) {
-        const headerCell = XLSX.utils.encode_cell({ r: 0, c: col });
-        if (ws[headerCell]) {
-          ws[headerCell].s = headerStyle;
-        }
-        
-        // จัดรูปแบบข้อมูลในแต่ละคอลัมน์
-        for (let row = range.s.r + 1; row <= range.e.r; row++) {
-          const cell = XLSX.utils.encode_cell({ r: row, c: col });
-          if (ws[cell]) {
-            let cellStyle;
-            
-            if (col === 0) { // ลำดับ
-              cellStyle = { ...dataStyle, alignment: { horizontal: "center", vertical: "center" } };
-            } else if (col === 3) { // จำนวน
-              cellStyle = quantityStyle;
-            } else if (col === 4 || col === 5) { // ราคาต่อหน่วย, ยอดขายรวม
-              cellStyle = numberStyle;
-            } else if (col === 7) { // ประเภท
-              cellStyle = typeStyle;
-            } else {
-              cellStyle = dataStyle;
-            }
-            
-            // เพิ่มสีพื้นหลังสลับแถว
-            if (row % 2 === 0) {
-              cellStyle = { ...cellStyle, fill: { fgColor: { rgb: "F8F9FA" } } };
-            }
-            
-            ws[cell].s = cellStyle;
-          }
-        }
-      }
-
-      // กำหนดความสูงของแถวหัวตาราง
-      ws['!rows'] = [{ hpt: 25 }];
-
-      // สร้าง workbook
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'รายการยอดขาย');
-
-      // ตรวจสอบว่ามีการกรองหรือไม่
-      const hasFilters = searchTerm || searchStartDate || searchEndDate || searchAmount || searchProject !== "all" || searchType !== "all";
-
-      // เพิ่มยอดสรุปตามตัวกรองที่เลือก
-      const summaryData = [
-        { 'รายการ': 'จำนวนรายการทั้งหมด', 'ค่า': filteredSales.length },
-        { 'รายการ': 'ยอดขายรวม', 'ค่า': totalSales },
-        { 'รายการ': 'จำนวนรวม', 'ค่า': totalQuantity },
-        { 'รายการ': 'ราคาเฉลี่ยต่อหน่วย', 'ค่า': averagePrice.toFixed(2) }
-      ];
-
-      // เพิ่มข้อมูลตัวกรองที่ใช้
-      if (hasFilters) {
-        const filterInfo = [];
-        if (searchTerm) filterInfo.push(`ค้นหา: ${searchTerm}`);
-        if (searchStartDate) filterInfo.push(`ตั้งแต่: ${searchStartDate}`);
-        if (searchEndDate) filterInfo.push(`ถึง: ${searchEndDate}`);
-        if (searchAmount) filterInfo.push(`จำนวนเงิน: ${searchAmount}`);
-        if (searchProject !== "all") filterInfo.push(`โครงการ: ${searchProject}`);
-        if (searchType !== "all") filterInfo.push(`ประเภท: ${searchType}`);
-        
-        if (filterInfo.length > 0) {
-          summaryData.unshift({ 'รายการ': 'ตัวกรองที่ใช้', 'ค่า': filterInfo.join(', ') });
-        }
-      }
-
-      const summaryWs = XLSX.utils.json_to_sheet(summaryData);
-      
-      // จัดรูปแบบหัวตารางสรุป
-      const summaryHeaderStyle = {
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "70AD47" } },
-        alignment: { horizontal: "center", vertical: "center" },
-        border: {
-          top: { style: "thin", color: { rgb: "000000" } },
-          bottom: { style: "thin", color: { rgb: "000000" } },
-          left: { style: "thin", color: { rgb: "000000" } },
-          right: { style: "thin", color: { rgb: "000000" } }
-        }
-      };
-
-      // จัดรูปแบบข้อมูลสรุป
-      const summaryDataStyle = {
-        font: { color: { rgb: "000000" } },
-        alignment: { vertical: "center" },
-        border: {
-          top: { style: "thin", color: { rgb: "CCCCCC" } },
-          bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-          left: { style: "thin", color: { rgb: "CCCCCC" } },
-          right: { style: "thin", color: { rgb: "CCCCCC" } }
-        }
-      };
-
-      // ใช้รูปแบบกับเซลล์สรุป
-      const summaryRange = XLSX.utils.decode_range(summaryWs['!ref'] || 'A1');
-      
-      for (let col = summaryRange.s.c; col <= summaryRange.e.c; col++) {
-        const headerCell = XLSX.utils.encode_cell({ r: 0, c: col });
-        if (summaryWs[headerCell]) {
-          summaryWs[headerCell].s = summaryHeaderStyle;
-        }
-        
-        for (let row = summaryRange.s.r + 1; row <= summaryRange.e.r; row++) {
-          const cell = XLSX.utils.encode_cell({ r: row, c: col });
-          if (summaryWs[cell]) {
-            summaryWs[cell].s = summaryDataStyle;
-          }
-        }
-      }
-
-      // กำหนดความกว้างของคอลัมน์สรุป
-      summaryWs['!cols'] = [
-        { wch: 25 },   // รายการ
-        { wch: 20 }    // ค่า
-      ];
-
-      XLSX.utils.book_append_sheet(wb, summaryWs, 'ยอดสรุป');
-
-      // สร้างชื่อไฟล์ตามตัวกรอง
-      let fileName = '';
-      const currentDate = new Date().toISOString().split('T')[0];
-      
-      if (hasFilters) {
-        // มีการกรอง - หาช่วงวันที่
-        const dates = filteredSales.map(s => new Date(s.date)).sort((a, b) => a.getTime() - b.getTime());
-        const startDate = dates[0];
-        const endDate = dates[dates.length - 1];
-        
-        if (startDate && endDate) {
-          const startDateStr = startDate.toISOString().split('T')[0];
-          const endDateStr = endDate.toISOString().split('T')[0];
-          
-          if (startDateStr === endDateStr) {
-            fileName = `รายการยอดขาย_${startDateStr}.xlsx`;
-          } else {
-            fileName = `รายการยอดขาย_${startDateStr}_ถึง_${endDateStr}.xlsx`;
-          }
-        } else {
-          fileName = `รายการยอดขาย_กรองแล้ว_${currentDate}.xlsx`;
-        }
-      } else {
-        // ไม่มีการกรอง - ใช้ข้อมูลทั้งหมด
-        fileName = `รายการยอดขายทั้งหมด_ณ_${currentDate}.xlsx`;
-      }
-
-      // ส่งออกไฟล์
-      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      saveAs(data, fileName);
-
-      // สร้างข้อความแจ้งเตือนตามประเภทการส่งออก
-      let message = `ส่งออกข้อมูล ${filteredSales.length} รายการเรียบร้อยแล้ว`;
-      
-      if (hasFilters) {
-        const dates = filteredSales.map(s => new Date(s.date)).sort((a, b) => a.getTime() - b.getTime());
-        const startDate = dates[0];
-        const endDate = dates[dates.length - 1];
-        
-        if (startDate && endDate) {
-          const startDateStr = startDate.toISOString().split('T')[0];
-          const endDateStr = endDate.toISOString().split('T')[0];
-          
-          if (startDateStr === endDateStr) {
-            message = `ส่งออกข้อมูล ${filteredSales.length} รายการ วันที่ ${startDateStr} เรียบร้อยแล้ว`;
-          } else {
-            message = `ส่งออกข้อมูล ${filteredSales.length} รายการ ตั้งแต่ ${startDateStr} ถึง ${endDateStr} เรียบร้อยแล้ว`;
-          }
-        } else {
-          message = `ส่งออกข้อมูล ${filteredSales.length} รายการ (กรองแล้ว) เรียบร้อยแล้ว`;
-        }
-      } else {
-        message = `ส่งออกข้อมูลทั้งหมด ${filteredSales.length} รายการ ณ วันที่ ${currentDate} เรียบร้อยแล้ว`;
-      }
-      
-      alert(message);
-    } catch (error) {
-      console.error('Error exporting to Excel:', error);
-      alert("เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel");
-    }
-  };
-
 
   const filteredSales = salesHistory.filter(sale => {
     // Name filter
@@ -679,15 +611,9 @@ export default function SalesEntry() {
       sale.qty?.toString().includes(searchTerm) ||
       sale.price?.toString().includes(searchTerm)
     
-    // Date filter - รองรับช่วงวันที่
-    let matchesDate = true
-    if (searchStartDate && searchEndDate) {
-      matchesDate = sale.date >= searchStartDate && sale.date <= searchEndDate
-    } else if (searchStartDate) {
-      matchesDate = sale.date === searchStartDate
-    } else if (searchEndDate) {
-      matchesDate = sale.date <= searchEndDate
-    }
+    // Date filter
+    const matchesDate = (!searchStartDate || sale.date >= searchStartDate) && 
+                       (!searchEndDate || sale.date <= searchEndDate)
     
     // Amount filter
     const matchesAmount = !searchAmount || sale.totalPrice.toString().includes(searchAmount)
@@ -777,7 +703,7 @@ export default function SalesEntry() {
                 <div>
                   <Label htmlFor="projectName" className="text-sm text-gray-700">โครงการ</Label>
                   <Select value={formData.projectName} onValueChange={(value) => handleInputChange("projectName", value)}>
-                    <SelectTrigger id="projectName" className="bg-white border-gray-300 text-sm">
+                    <SelectTrigger className="bg-white border-gray-300 text-sm">
                       <SelectValue placeholder="เลือกโครงการ" />
                     </SelectTrigger>
                     <SelectContent>
@@ -791,64 +717,17 @@ export default function SalesEntry() {
                 </div>
               </div>
 
-              <div className="relative">
+              <div>
                 <Label htmlFor="description" className="text-sm text-gray-700">รายละเอียดการขาย</Label>
-                <div className="relative">
-                  <Input
-                    id="description"
-                    type="text"
-                    value={typeSearchValue}
-                    onChange={(e) => handleTypeSearchChange(e.target.value)}
-                    placeholder="พิมพ์เพื่อค้นหารายการขาย..."
-                    className="bg-white border-gray-300 text-sm"
-                    required
-                                          onFocus={() => {
-                        setShowTypeDropdown(true)
-                        // If "เพิ่มประเภทใหม่" is selected, show all options
-                        if (formData.description === "เพิ่มประเภทใหม่") {
-                          setFilteredSalesTypes(salesTypes.filter(type => type.name !== "เพิ่มประเภทใหม่"))
-                        }
-                      }}
-                      onClick={() => {
-                        setShowTypeDropdown(true)
-                        // If "เพิ่มประเภทใหม่" is selected, show all options
-                        if (formData.description === "เพิ่มประเภทใหม่") {
-                          setFilteredSalesTypes(salesTypes.filter(type => type.name !== "เพิ่มประเภทใหม่"))
-                        }
-                      }}
-                      onBlur={() => setTimeout(() => setShowTypeDropdown(false), 200)}
-                  />
-                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                </div>
-                
-                {/* Autocomplete Dropdown */}
-                {showTypeDropdown && filteredSalesTypes.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                    {filteredSalesTypes.filter(type => type.name !== "เพิ่มประเภทใหม่").map((type) => (
-                      <div
-                        key={type.id}
-                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                        onClick={() => handleTypeSelect(type)}
-                      >
-                        <div className="font-medium text-sm">{type.name}</div>
-                        <div className="text-xs text-gray-500">{type.category}</div>
-                      </div>
-                    ))}
-                                          <div
-                        className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 bg-blue-50"
-                        onClick={() => {
-                          setFormData(prev => ({ ...prev, description: "เพิ่มประเภทใหม่" }))
-                          setTypeSearchValue("เพิ่มประเภทใหม่")
-                          setShowTypeDropdown(false)
-                          // Clear any existing custom type
-                          setFormData(prev => ({ ...prev, customType: "" }))
-                        }}
-                      >
-                        <div className="font-medium text-sm text-blue-600">+ เพิ่มประเภทใหม่</div>
-                        <div className="text-xs text-blue-500">สร้างประเภทการขายใหม่</div>
-                      </div>
-                  </div>
-                )}
+                <Input
+                  id="description"
+                  type="text"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  placeholder="กรอกรายละเอียดการขาย..."
+                  className="bg-white border-gray-300 text-sm"
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -892,9 +771,9 @@ export default function SalesEntry() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="salesType" className="text-sm text-gray-700">ประเภทการขาย</Label>
+                  <Label htmlFor="projectType" className="text-sm text-gray-700">ประเภทการขาย</Label>
                   <Input
-                    id="salesType"
+                    id="projectType"
                     value={formData.projectType}
                     readOnly
                     className="bg-gray-50 border-gray-300 text-sm"
@@ -903,21 +782,7 @@ export default function SalesEntry() {
                 </div>
               </div>
 
-              {/* Custom Type Input - แสดงเมื่อเลือก "เพิ่มประเภทใหม่" */}
-              {formData.description === "เพิ่มประเภทใหม่" && (
-                <div>
-                  <Label htmlFor="customSalesType" className="text-sm text-gray-700">ระบุประเภทการขาย</Label>
-                  <Input
-                    id="customSalesType"
-                    type="text"
-                    value={formData.customType}
-                    onChange={(e) => handleInputChange("customType", e.target.value)}
-                    placeholder="กรอกประเภทการขายที่ต้องการ..."
-                    className="bg-white border-gray-300 text-sm"
-                    required={formData.description === "เพิ่มประเภทใหม่"}
-                  />
-                </div>
-              )}
+
 
               <div>
                 <Label htmlFor="note" className="text-sm text-gray-700">หมายเหตุ</Label>
@@ -934,18 +799,11 @@ export default function SalesEntry() {
               <div>
                 <Label htmlFor="projectType" className="text-sm text-gray-700">ประเภทโครงการ</Label>
                 <Select value={formData.projectType} onValueChange={(value) => handleInputChange("projectType", value)}>
-                  <SelectTrigger id="projectType" className="bg-white border-gray-300 text-sm">
+                  <SelectTrigger className="bg-white border-gray-300 text-sm">
                     <SelectValue placeholder="เลือกประเภทโครงการ" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Website">Website</SelectItem>
-                    <SelectItem value="Mobile App">Mobile App</SelectItem>
-                    <SelectItem value="Desktop App">Desktop App</SelectItem>
-                    <SelectItem value="API">API</SelectItem>
-                    <SelectItem value="Database">Database</SelectItem>
-                    <SelectItem value="Consulting">Consulting</SelectItem>
-                    <SelectItem value="Training">Training</SelectItem>
-                    {availableTypes.filter(type => !["Website", "Mobile App", "Desktop App", "API", "Database", "Consulting", "Training"].includes(type)).map((type) => (
+                    {availableTypes.map((type) => (
                       <SelectItem key={type} value={type}>
                         {type}
                       </SelectItem>
@@ -955,21 +813,7 @@ export default function SalesEntry() {
                 </Select>
               </div>
 
-              {/* Custom Type Input - แสดงเมื่อเลือก "เพิ่มประเภทใหม่" */}
-              {formData.projectType === "เพิ่มประเภทใหม่" && (
-                <div>
-                  <Label htmlFor="customProjectType" className="text-sm text-gray-700">ระบุประเภทโครงการ</Label>
-                  <Input
-                    id="customProjectType"
-                    type="text"
-                    value={formData.customType}
-                    onChange={(e) => handleInputChange("customType", e.target.value)}
-                    placeholder="กรอกประเภทโครงการที่ต้องการ..."
-                    className="bg-white border-gray-300 text-sm"
-                    required={formData.projectType === "เพิ่มประเภทใหม่"}
-                  />
-                </div>
-              )}
+
 
               <div className="flex justify-end space-x-2 pt-4">
                 <Button
@@ -1000,7 +844,7 @@ export default function SalesEntry() {
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">{totalSales.toLocaleString("th-TH")}</div>
-            <p className="text-xs text-gray-500">{filteredSales.length} รายการ</p>
+            <p className="text-xs text-gray-500">{filteredSales.length.toLocaleString("th-TH")} รายการ</p>
           </CardContent>
         </Card>
 
@@ -1038,11 +882,11 @@ export default function SalesEntry() {
                 <CardContent className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">ยอดขายรวม:</span>
-                    <span className="font-semibold text-green-600">{projectData.totalSales.toLocaleString()} บาท</span>
+                    <span className="font-semibold text-green-600">{projectData.totalSales.toLocaleString("th-TH")} บาท</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">จำนวนรายการ:</span>
-                    <span className="font-semibold text-blue-600">{projectData.count} รายการ</span>
+                    <span className="font-semibold text-blue-600">{projectData.count.toLocaleString("th-TH")} รายการ</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">จำนวนรวม:</span>
@@ -1063,18 +907,17 @@ export default function SalesEntry() {
         <CardContent className="space-y-3 sm:space-y-4">
           <div className="flex justify-between items-center mb-4">
             <div className="text-sm text-gray-600">
-              แสดง {filteredSales.length} จาก {salesHistory.length} รายการ
+              แสดง {filteredSales.length.toLocaleString("th-TH")} จาก {salesHistory.length.toLocaleString("th-TH")} รายการ
             </div>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={exportToExcel}
-                className="text-xs bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                disabled={filteredSales.length === 0}
+                className="text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
               >
-                <Download className="w-3 h-3 mr-1" />
-                ส่งออก Excel
+                <Download className="h-3 w-3 mr-1" />
+                Export Excel
               </Button>
               <Button
                 variant="outline"
@@ -1093,7 +936,7 @@ export default function SalesEntry() {
               </Button>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="search" className="text-xs sm:text-sm text-gray-700">ค้นหา</Label>
               <div className="relative">
@@ -1109,6 +952,26 @@ export default function SalesEntry() {
               </div>
             </div>
             <div>
+              <Label htmlFor="searchStartDate" className="text-xs sm:text-sm text-gray-700">วันที่เริ่มต้น</Label>
+              <Input
+                id="searchStartDate"
+                type="date"
+                value={searchStartDate}
+                onChange={(e) => setSearchStartDate(e.target.value)}
+                className="bg-white border-gray-300 text-xs sm:text-sm"
+              />
+            </div>
+            <div>
+              <Label htmlFor="searchEndDate" className="text-xs sm:text-sm text-gray-700">วันที่สิ้นสุด</Label>
+              <Input
+                id="searchEndDate"
+                type="date"
+                value={searchEndDate}
+                onChange={(e) => setSearchEndDate(e.target.value)}
+                className="bg-white border-gray-300 text-xs sm:text-sm"
+              />
+            </div>
+            <div>
               <Label htmlFor="searchAmount" className="text-xs sm:text-sm text-gray-700">จำนวนเงิน</Label>
               <Input
                 id="searchAmount"
@@ -1122,7 +985,7 @@ export default function SalesEntry() {
             <div>
               <Label htmlFor="searchProject" className="text-xs sm:text-sm text-gray-700">โครงการ</Label>
               <Select value={searchProject} onValueChange={setSearchProject}>
-                <SelectTrigger id="searchProject" className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
                   <SelectValue placeholder="ทุกโครงการ" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1138,7 +1001,7 @@ export default function SalesEntry() {
             <div>
               <Label htmlFor="searchType" className="text-xs sm:text-sm text-gray-700">ประเภท</Label>
               <Select value={searchType} onValueChange={setSearchType}>
-                <SelectTrigger id="searchType" className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
                   <SelectValue placeholder="ทุกประเภท" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1150,28 +1013,6 @@ export default function SalesEntry() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <Label htmlFor="searchStartDate" className="text-xs sm:text-sm text-gray-700">ตั้งแต่</Label>
-              <Input
-                id="searchStartDate"
-                type="date"
-                value={searchStartDate}
-                onChange={(e) => setSearchStartDate(e.target.value)}
-                className="bg-white border-gray-300 text-xs sm:text-sm"
-                placeholder="เลือกวันที่เริ่มต้น"
-              />
-            </div>
-            <div>
-              <Label htmlFor="searchEndDate" className="text-xs sm:text-sm text-gray-700">ถึง</Label>
-              <Input
-                id="searchEndDate"
-                type="date"
-                value={searchEndDate}
-                onChange={(e) => setSearchEndDate(e.target.value)}
-                className="bg-white border-gray-300 text-xs sm:text-sm"
-                placeholder="เลือกวันที่สิ้นสุด"
-              />
             </div>
 
           </div>
@@ -1198,7 +1039,7 @@ export default function SalesEntry() {
                         <p className="text-sm text-gray-600 mb-1">{sale.projectName}</p>
                         <p className="text-xs text-gray-500">{sale.date}</p>
                         <p className="text-sm text-gray-600 mb-1">
-                          จำนวน: {sale.qty} | ราคาต่อหน่วย: {parseFloat(sale.price).toLocaleString("th-TH")} บาท
+                          จำนวน: {Number(sale.qty || 0).toLocaleString("th-TH")} | ราคาต่อหน่วย: {parseFloat(sale.price).toLocaleString("th-TH")} บาท
                         </p>
                         {sale.note && (
                           <p className="text-sm text-gray-600 mt-2 italic">"{sale.note}"</p>

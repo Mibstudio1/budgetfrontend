@@ -19,7 +19,13 @@ export default function CategoryManagement() {
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([])
   const [loading, setLoading] = useState(true)
   
-
+  console.log('CategoryManagement component loaded')
+  console.log('User:', user)
+  console.log('categoryService:', categoryService)
+  console.log('expenseItemService:', expenseItemService)
+  console.log('Current state - expenseCategories:', expenseCategories)
+  console.log('Current state - salesTypes:', salesTypes)
+  console.log('Current state - expenseItems:', expenseItems)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [editingExpenseItem, setEditingExpenseItem] = useState<ExpenseItem | null>(null)
   const [newCategoryName, setNewCategoryName] = useState("")
@@ -34,29 +40,31 @@ export default function CategoryManagement() {
   }, [])
 
   useEffect(() => {
-
+    console.log('State updated - expenseCategories:', expenseCategories)
   }, [expenseCategories])
 
   useEffect(() => {
-
+    console.log('State updated - salesTypes:', salesTypes)
   }, [salesTypes])
 
   useEffect(() => {
-
+    console.log('State updated - expenseItems:', expenseItems)
   }, [expenseItems])
 
   const fetchCategories = async () => {
     try {
       setLoading(true)
-  
+      console.log('Fetching categories...')
       
       // Fetch expense categories
       try {
         const expenseResponse = await categoryService.getExpenseCategories()
+        console.log('Expense categories response:', expenseResponse)
         if (expenseResponse.success && expenseResponse.result && expenseResponse.result.result && Array.isArray(expenseResponse.result.result)) {
           setExpenseCategories(expenseResponse.result.result || [])
+          console.log('Set expense categories:', expenseResponse.result.result)
         } else {
-          // Invalid expense response format
+          console.log('Invalid expense response format:', expenseResponse)
         }
       } catch (error) {
         console.error('Error fetching expense categories:', error)
@@ -65,10 +73,12 @@ export default function CategoryManagement() {
       // Fetch sales types
       try {
         const salesResponse = await categoryService.getSalesCategories()
+        console.log('Sales types response:', salesResponse)
         if (salesResponse.success && salesResponse.result && salesResponse.result.result && Array.isArray(salesResponse.result.result)) {
           setSalesTypes(salesResponse.result.result || [])
+          console.log('Set sales types:', salesResponse.result.result)
         } else {
-          // Invalid sales response format
+          console.log('Invalid sales response format:', salesResponse)
         }
       } catch (error) {
         console.error('Error fetching sales types:', error)
@@ -78,10 +88,12 @@ export default function CategoryManagement() {
       if (expenseItemService) {
         try {
           const itemsResponse = await expenseItemService.getAllExpenseItems()
+          console.log('Expense items response:', itemsResponse)
           if (itemsResponse.success && itemsResponse.result && itemsResponse.result.result && Array.isArray(itemsResponse.result.result)) {
             setExpenseItems(itemsResponse.result.result || [])
+            console.log('Set expense items:', itemsResponse.result.result)
           } else {
-            // Invalid expense items response format
+            console.log('Invalid expense items response format:', itemsResponse)
           }
         } catch (error) {
           console.error('Error fetching expense items:', error)

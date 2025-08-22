@@ -315,7 +315,7 @@ export default function ExpenseEntryForm() {
               type="text"
               value={formData.category}
               onChange={(e) => handleInputChange("category", e.target.value)}
-              placeholder="พิมพ์เพื่อค้นหาหมวดหมู่..."
+                              placeholder="พิมพ์เพื่อค้นหาหมวดหมู่ค่าใช้จ่าย..."
               className="bg-white"
               disabled={saving}
               onFocus={() => setShowCategoryDropdown(true)}
