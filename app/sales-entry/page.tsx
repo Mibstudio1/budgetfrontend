@@ -26,6 +26,7 @@ interface SalesRecord {
   price: string
   totalPrice: string
   type: string
+  note?: string
 }
 
 interface Project {
@@ -936,9 +937,10 @@ export default function SalesEntry() {
               </Button>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {/* Row 1: Search and Amount */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <Label htmlFor="search" className="text-xs sm:text-sm text-gray-700">ค้นหา</Label>
+              <Label htmlFor="search" className="text-sm font-medium text-gray-700 mb-2 block">ค้นหาข้อมูล</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
@@ -947,45 +949,29 @@ export default function SalesEntry() {
                   placeholder="ค้นหาทุกข้อมูล: รายละเอียด, โครงการ, จำนวน, ราคา..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-white border-gray-300 text-xs sm:text-sm"
+                  className="pl-10 bg-white border-gray-300 text-sm h-10"
                 />
               </div>
             </div>
             <div>
-              <Label htmlFor="searchStartDate" className="text-xs sm:text-sm text-gray-700">วันที่เริ่มต้น</Label>
-              <Input
-                id="searchStartDate"
-                type="date"
-                value={searchStartDate}
-                onChange={(e) => setSearchStartDate(e.target.value)}
-                className="bg-white border-gray-300 text-xs sm:text-sm"
-              />
-            </div>
-            <div>
-              <Label htmlFor="searchEndDate" className="text-xs sm:text-sm text-gray-700">วันที่สิ้นสุด</Label>
-              <Input
-                id="searchEndDate"
-                type="date"
-                value={searchEndDate}
-                onChange={(e) => setSearchEndDate(e.target.value)}
-                className="bg-white border-gray-300 text-xs sm:text-sm"
-              />
-            </div>
-            <div>
-              <Label htmlFor="searchAmount" className="text-xs sm:text-sm text-gray-700">จำนวนเงิน</Label>
+              <Label htmlFor="searchAmount" className="text-sm font-medium text-gray-700 mb-2 block">จำนวนเงิน</Label>
               <Input
                 id="searchAmount"
                 type="text"
                 placeholder="ค้นหาจำนวนเงิน..."
                 value={searchAmount}
                 onChange={(e) => setSearchAmount(e.target.value)}
-                className="bg-white border-gray-300 text-xs sm:text-sm"
+                className="bg-white border-gray-300 text-sm h-10"
               />
             </div>
+          </div>
+
+          {/* Row 2: Dropdowns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <Label htmlFor="searchProject" className="text-xs sm:text-sm text-gray-700">โครงการ</Label>
+              <Label htmlFor="searchProject" className="text-sm font-medium text-gray-700 mb-2 block">โครงการ</Label>
               <Select value={searchProject} onValueChange={setSearchProject}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger className="bg-white border-gray-300 text-sm h-10">
                   <SelectValue placeholder="ทุกโครงการ" />
                 </SelectTrigger>
                 <SelectContent>
@@ -999,9 +985,9 @@ export default function SalesEntry() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="searchType" className="text-xs sm:text-sm text-gray-700">ประเภท</Label>
+              <Label htmlFor="searchType" className="text-sm font-medium text-gray-700 mb-2 block">ประเภทโครงการ</Label>
               <Select value={searchType} onValueChange={setSearchType}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger className="bg-white border-gray-300 text-sm h-10">
                   <SelectValue placeholder="ทุกประเภท" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1014,7 +1000,33 @@ export default function SalesEntry() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
+          {/* Row 3: Date Range */}
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <Label className="text-sm font-medium text-gray-700 mb-3 block">ช่วงวันที่</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="searchStartDate" className="text-xs text-gray-600 mb-1 block">วันที่เริ่มต้น</Label>
+                <Input
+                  id="searchStartDate"
+                  type="date"
+                  value={searchStartDate}
+                  onChange={(e) => setSearchStartDate(e.target.value)}
+                  className="bg-white border-gray-300 text-sm h-10"
+                />
+              </div>
+              <div>
+                <Label htmlFor="searchEndDate" className="text-xs text-gray-600 mb-1 block">วันที่สิ้นสุด</Label>
+                <Input
+                  id="searchEndDate"
+                  type="date"
+                  value={searchEndDate}
+                  onChange={(e) => setSearchEndDate(e.target.value)}
+                  className="bg-white border-gray-300 text-sm h-10"
+                />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

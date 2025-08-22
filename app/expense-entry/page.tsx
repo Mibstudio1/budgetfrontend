@@ -1350,33 +1350,41 @@ export default function ExpenseEntry() {
               </Button>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {/* Row 1: Search and Amount */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <Label htmlFor="searchName" className="text-xs sm:text-sm text-gray-700">ชื่อรายการ</Label>
-              <Input
-                id="searchName"
-                type="text"
-                placeholder="ค้นหาชื่อรายการ..."
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                className="bg-white border-gray-300 text-xs sm:text-sm"
-              />
+              <Label htmlFor="searchName" className="text-sm font-medium text-gray-700 mb-2 block">ค้นหาชื่อรายการ</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="searchName"
+                  type="text"
+                  placeholder="พิมพ์เพื่อค้นหาชื่อรายการ..."
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                  className="pl-10 bg-white border-gray-300 text-sm h-10"
+                />
+              </div>
             </div>
             <div>
-              <Label htmlFor="searchAmount" className="text-xs sm:text-sm text-gray-700">จำนวนเงิน</Label>
+              <Label htmlFor="searchAmount" className="text-sm font-medium text-gray-700 mb-2 block">จำนวนเงิน</Label>
               <Input
                 id="searchAmount"
                 type="text"
                 placeholder="ค้นหาจำนวนเงิน..."
                 value={searchAmount}
                 onChange={(e) => setSearchAmount(e.target.value)}
-                className="bg-white border-gray-300 text-xs sm:text-sm"
+                className="bg-white border-gray-300 text-sm h-10"
               />
             </div>
+          </div>
+
+          {/* Row 2: Dropdowns */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <Label htmlFor="searchProject" className="text-xs sm:text-sm text-gray-700">โครงการ</Label>
+              <Label htmlFor="searchProject" className="text-sm font-medium text-gray-700 mb-2 block">โครงการ</Label>
               <Select value={searchProject} onValueChange={setSearchProject}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger className="bg-white border-gray-300 text-sm h-10">
                   <SelectValue placeholder="ทุกโครงการ" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1390,13 +1398,13 @@ export default function ExpenseEntry() {
               </Select>
             </div>
             <div>
-                              <Label htmlFor="searchCategory" className="text-xs sm:text-sm text-gray-700">หมวดหมู่ค่าใช้จ่าย</Label>
+              <Label htmlFor="searchCategory" className="text-sm font-medium text-gray-700 mb-2 block">หมวดหมู่ค่าใช้จ่าย</Label>
               <Select value={searchCategory} onValueChange={setSearchCategory}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
-                  <SelectValue placeholder="ทุกหมวดหมู่ค่าใช้จ่าย" />
+                <SelectTrigger className="bg-white border-gray-300 text-sm h-10">
+                  <SelectValue placeholder="ทุกหมวดหมู่" />
                 </SelectTrigger>
                 <SelectContent>
-                                      <SelectItem value="all">ทุกหมวดหมู่ค่าใช้จ่าย</SelectItem>
+                  <SelectItem value="all">ทุกหมวดหมู่ค่าใช้จ่าย</SelectItem>
                   {availableCategories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
@@ -1406,9 +1414,9 @@ export default function ExpenseEntry() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="searchStatus" className="text-xs sm:text-sm text-gray-700">สถานะการชำระ</Label>
+              <Label htmlFor="searchStatus" className="text-sm font-medium text-gray-700 mb-2 block">สถานะการชำระ</Label>
               <Select value={searchStatus} onValueChange={setSearchStatus}>
-                <SelectTrigger className="bg-white border-gray-300 text-xs sm:text-sm">
+                <SelectTrigger className="bg-white border-gray-300 text-sm h-10">
                   <SelectValue placeholder="ทุกสถานะ" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1418,28 +1426,31 @@ export default function ExpenseEntry() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor="searchStartDate" className="text-xs sm:text-sm text-gray-700">วันที่เริ่มต้น</Label>
-                  <Input
-                    id="searchStartDate"
-                    type="date"
-                    value={searchStartDate}
-                    onChange={(e) => setSearchStartDate(e.target.value)}
-                    className="bg-white border-gray-300 text-xs sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="searchEndDate" className="text-xs sm:text-sm text-gray-700">วันที่สิ้นสุด</Label>
-                  <Input
-                    id="searchEndDate"
-                    type="date"
-                    value={searchEndDate}
-                    onChange={(e) => setSearchEndDate(e.target.value)}
-                    className="bg-white border-gray-300 text-xs sm:text-sm"
-                  />
-                </div>
+          </div>
+
+          {/* Row 3: Date Range */}
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <Label className="text-sm font-medium text-gray-700 mb-3 block">ช่วงวันที่</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="searchStartDate" className="text-xs text-gray-600 mb-1 block">วันที่เริ่มต้น</Label>
+                <Input
+                  id="searchStartDate"
+                  type="date"
+                  value={searchStartDate}
+                  onChange={(e) => setSearchStartDate(e.target.value)}
+                  className="bg-white border-gray-300 text-sm h-10"
+                />
+              </div>
+              <div>
+                <Label htmlFor="searchEndDate" className="text-xs text-gray-600 mb-1 block">วันที่สิ้นสุด</Label>
+                <Input
+                  id="searchEndDate"
+                  type="date"
+                  value={searchEndDate}
+                  onChange={(e) => setSearchEndDate(e.target.value)}
+                  className="bg-white border-gray-300 text-sm h-10"
+                />
               </div>
             </div>
           </div>
